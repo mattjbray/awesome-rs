@@ -6,3 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+accessibility = "0.1.6"
+core-graphics = "0.23.1"
+
+[patch.crates-io]
+accessibility = { path = "./vendor/accessibility/accessibility" }
