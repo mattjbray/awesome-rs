@@ -1,8 +1,11 @@
+use std::cell::Cell;
+
 use accessibility::{AXAttribute, AXUIElement, AXUIElementAttributes, AXValue};
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
 use core_graphics::display::CGSize;
 use core_graphics::event::{
-    CGEvent, CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement, CGEventType,
+    CGEvent, CGEventFlags, CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement,
+    CGEventType,
 };
 
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
@@ -39,18 +42,33 @@ fn main() {
 
     position_window_around(&window, &CGPoint::new(mouse_location.x, mouse_location.y));
 
-    let event_tap = CGEventTap::new(
-        CGEventTapLocation::HID,
-        CGEventTapPlacement::HeadInsertEventTap,
-        CGEventTapOptions::ListenOnly,
-        vec![CGEventType::MouseMoved],
-        |_, _, event| {
-            println!("{:?}", event.location());
-            position_window_around(&window, &event.location());
-            None
-        },
-    )
-    .unwrap();
+    let move_mode = Cell::new(false);
+
+    let event_tap = {
+        use CGEventType::*;
+        CGEventTap::new(
+            CGEventTapLocation::HID,
+            CGEventTapPlacement::HeadInsertEventTap,
+            CGEventTapOptions::ListenOnly,
+            vec![MouseMoved, FlagsChanged],
+            |_, event_type, event| {
+                match event_type {
+                    MouseMoved => {
+                        if move_mode.get() {
+                            position_window_around(&window, &event.location());
+                        }
+                    }
+                    FlagsChanged => {
+                        move_mode
+                            .replace(event.get_flags().contains(CGEventFlags::CGEventFlagCommand));
+                    }
+                    _ => (),
+                };
+                None
+            },
+        )
+        .unwrap()
+    };
 
     let current = CFRunLoop::get_current();
     let loop_source = event_tap.mach_port.create_runloop_source(0).unwrap();
