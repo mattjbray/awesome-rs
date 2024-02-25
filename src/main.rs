@@ -88,10 +88,11 @@ fn main() {
             vec![MouseMoved, FlagsChanged],
             |_, event_type, event| {
                 match event_type {
-                    MouseMoved => match state.borrow().as_ref() {
-                        Some(state) => state.position_around(&event.location()),
-                        None => (),
-                    },
+                    MouseMoved => {
+                        if let Some(state) = state.borrow().as_ref() {
+                            state.position_around(&event.location())
+                        }
+                    }
 
                     FlagsChanged => {
                         let mut s = state.borrow_mut();
