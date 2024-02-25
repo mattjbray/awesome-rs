@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 accessibility = "0.1.6"
+cocoa = "0.25.0"
 core-foundation = "0.9.4"
 core-graphics = "0.23.1"
 

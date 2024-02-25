@@ -1,8 +1,9 @@
-use std::cell::Cell;
+use std::cell::RefCell;
 
 use accessibility::{AXAttribute, AXUIElement, AXUIElementAttributes, AXValue};
+use cocoa::appkit::{NSApplicationActivationOptions, NSRunningApplication};
+use cocoa::base::nil;
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
-use core_graphics::display::CGSize;
 use core_graphics::event::{
     CGEvent, CGEventFlags, CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement,
     CGEventType,
@@ -11,22 +12,21 @@ use core_graphics::event::{
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 use core_graphics::geometry::CGPoint;
 
-fn position_window_around(window: &AXUIElement, point: &CGPoint) {
-    let size: CGSize = window.size().unwrap().get_value().unwrap();
-    let x = point.x - size.width / 2.;
-    let y = point.y - size.height / 2.;
-
-    let position = CGPoint::new(x, y);
-
-    window
-        .set_attribute(
-            &AXAttribute::position(),
-            AXValue::from_CGPoint(position).unwrap(),
-        )
-        .unwrap();
+struct WindowState {
+    window: AXUIElement,
+    mouse_offset: CGPoint,
 }
 
-fn get_window_under_mouse(system_wide_element: &AXUIElement) -> AXUIElement {
+impl WindowState {
+    fn new(window: AXUIElement, mouse_offset: CGPoint) -> Self {
+        Self {
+            window,
+            mouse_offset,
+        }
+    }
+}
+
+fn get_window_under_mouse(system_wide_element: &AXUIElement) -> Option<WindowState> {
     let mouse_location = CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
         .and_then(CGEvent::new)
         .map(|e| e.location())
@@ -36,17 +36,37 @@ fn get_window_under_mouse(system_wide_element: &AXUIElement) -> AXUIElement {
         .element_at_position(mouse_location.x as f32, mouse_location.y as f32)
         .unwrap();
 
-    let window = element.window().unwrap();
+    element
+        .window()
+        .map(|window| {
+            let window_pos: CGPoint = window.position().unwrap().get_value().unwrap();
+            let mouse_offset = CGPoint::new(
+                mouse_location.x - window_pos.x,
+                mouse_location.y - window_pos.y,
+            );
+            WindowState::new(window, mouse_offset)
+        })
+        .ok()
+}
 
-    window
+fn position_window_around(s: &WindowState, point: &CGPoint) {
+    let x = point.x - s.mouse_offset.x;
+    let y = point.y - s.mouse_offset.y;
+
+    let position = CGPoint::new(x, y);
+
+    s.window
+        .set_attribute(
+            &AXAttribute::position(),
+            AXValue::from_CGPoint(position).unwrap(),
+        )
+        .unwrap();
 }
 
 fn main() {
     let system_wide_element = AXUIElement::system_wide();
 
-    let window = get_window_under_mouse(&system_wide_element);
-
-    let move_mode = Cell::new(false);
+    let state: RefCell<Option<WindowState>> = RefCell::new(None);
 
     let event_tap = {
         use CGEventType::*;
@@ -57,21 +77,33 @@ fn main() {
             vec![MouseMoved, FlagsChanged],
             |_, event_type, event| {
                 match event_type {
-                    MouseMoved => {
-                        if move_mode.get() {
-                            position_window_around(&window, &event.location());
-                        }
-                    }
+                    MouseMoved => match state.borrow().as_ref() {
+                        Some(state) => position_window_around(&state, &event.location()),
+                        None => (),
+                    },
+
                     FlagsChanged => {
-                        move_mode
-                            .replace(event.get_flags().contains(CGEventFlags::CGEventFlagCommand));
+                        let mut s = state.borrow_mut();
+                        if event.get_flags().contains(CGEventFlags::CGEventFlagCommand) {
+                            *s = get_window_under_mouse(&system_wide_element);
+                            if let Some(window_state) = s.as_ref() {
+                                let pid = window_state.window.pid().unwrap();
+                                unsafe {
+                                    let app = NSRunningApplication::runningApplicationWithProcessIdentifier(nil, pid);
+                                    app.activateWithOptions_(NSApplicationActivationOptions::NSApplicationActivateAllWindows);
+                                }
+                                window_state.window.set_main(true).unwrap();
+                            }
+                        } else {
+                            *s = None;
+                        }
                     }
                     _ => (),
                 };
                 None
             },
         )
-        .unwrap()
+            .unwrap()
     };
 
     let current = CFRunLoop::get_current();
