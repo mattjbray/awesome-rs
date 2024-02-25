@@ -26,6 +26,7 @@ name = "awesome-rs"
 version = "0.1.0"
 dependencies = [
  "accessibility",
+ "core-foundation",
  "core-graphics 0.23.1",
 ]
 
