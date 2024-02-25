@@ -21,6 +21,7 @@
               rustPackages.clippy
               rustc
               rustfmt
+              rust-analyzer
               (with pkgs.darwin.apple_sdk.frameworks; [ AppKit ])
             ];
             RUST_SRC_PATH = rustPlatform.rustLibSrc;
