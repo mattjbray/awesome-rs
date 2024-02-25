@@ -25,7 +25,6 @@ impl WindowState {
         }
     }
 
-
     fn from_mouse_location(system_wide_element: &AXUIElement) -> Option<Self> {
         let mouse_location = CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
             .and_then(CGEvent::new)
@@ -67,12 +66,13 @@ impl WindowState {
         let pid = self.window.pid().unwrap();
         unsafe {
             let app = NSRunningApplication::runningApplicationWithProcessIdentifier(nil, pid);
-            app.activateWithOptions_(NSApplicationActivationOptions::NSApplicationActivateAllWindows);
+            app.activateWithOptions_(
+                NSApplicationActivationOptions::NSApplicationActivateAllWindows,
+            );
         }
         self.window.set_main(true).unwrap();
     }
 }
-
 
 fn main() {
     let system_wide_element = AXUIElement::system_wide();
@@ -109,7 +109,7 @@ fn main() {
                 None
             },
         )
-            .unwrap()
+        .unwrap()
     };
 
     let current = CFRunLoop::get_current();
