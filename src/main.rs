@@ -4,6 +4,7 @@ use accessibility::{AXAttribute, AXUIElement, AXUIElementAttributes, AXValue};
 use cocoa::appkit::{NSApplicationActivationOptions, NSRunningApplication};
 use cocoa::base::nil;
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
+use core_foundation::string::CFString;
 use core_graphics::event::{
     CGEvent, CGEventFlags, CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement,
     CGEventType,
@@ -35,8 +36,18 @@ impl WindowState {
             .element_at_position(mouse_location.x as f32, mouse_location.y as f32)
             .unwrap();
 
-        element
-            .window()
+        let element_is_window = match element.role() {
+            Ok(role) => role == CFString::from_static_string(accessibility_sys::kAXWindowRole),
+            _ => false,
+        };
+
+        let window = if element_is_window {
+            Ok(element)
+        } else {
+            element.window()
+        };
+
+        window
             .map(|window| {
                 let window_pos: CGPoint = window.position().unwrap().get_value().unwrap();
                 let mouse_offset = CGPoint::new(
