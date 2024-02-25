@@ -26,13 +26,11 @@ fn position_window_around(window: &AXUIElement, point: &CGPoint) {
         .unwrap();
 }
 
-fn main() {
+fn get_window_under_mouse(system_wide_element: &AXUIElement) -> AXUIElement {
     let mouse_location = CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
         .and_then(CGEvent::new)
         .map(|e| e.location())
         .unwrap();
-
-    let system_wide_element = AXUIElement::system_wide();
 
     let element = system_wide_element
         .element_at_position(mouse_location.x as f32, mouse_location.y as f32)
@@ -40,7 +38,13 @@ fn main() {
 
     let window = element.window().unwrap();
 
-    position_window_around(&window, &CGPoint::new(mouse_location.x, mouse_location.y));
+    window
+}
+
+fn main() {
+    let system_wide_element = AXUIElement::system_wide();
+
+    let window = get_window_under_mouse(&system_wide_element);
 
     let move_mode = Cell::new(false);
 
