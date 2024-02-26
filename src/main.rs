@@ -1,8 +1,7 @@
 use std::cell::RefCell;
 
 use accessibility::{AXAttribute, AXUIElement, AXUIElementAttributes, AXValue};
-use cocoa::appkit::{NSApplicationActivationOptions, NSRunningApplication};
-use cocoa::base::nil;
+use accessibility_sys::kAXApplicationRole;
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
 use core_foundation::string::CFString;
 use core_graphics::event::{
@@ -16,6 +15,16 @@ use core_graphics::geometry::CGPoint;
 struct WindowState {
     window: AXUIElement,
     mouse_offset: CGPoint,
+}
+
+fn get_application(element: &AXUIElement) -> Result<AXUIElement, accessibility::Error> {
+    let role = element.role()?;
+    if role == CFString::from_static_string(kAXApplicationRole) {
+        Ok(element.clone())
+    } else {
+        let parent = element.parent()?;
+        get_application(&parent)
+    }
 }
 
 impl WindowState {
@@ -74,13 +83,9 @@ impl WindowState {
     }
 
     fn activate(&self) {
-        let pid = self.window.pid().unwrap();
-        unsafe {
-            let app = NSRunningApplication::runningApplicationWithProcessIdentifier(nil, pid);
-            app.activateWithOptions_(
-                NSApplicationActivationOptions::NSApplicationActivateAllWindows,
-            );
-        }
+        get_application(&self.window).unwrap()
+            .set_attribute(&AXAttribute::frontmost(), true)
+            .unwrap();
         self.window.set_main(true).unwrap();
     }
 }
