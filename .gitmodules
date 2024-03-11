@@ -1,0 +1,3 @@
+[submodule "vendor/accessibility"]
+	path = vendor/accessibility
+	url = git@github.com:mattjbray/accessibility.git
