@@ -6,7 +6,7 @@ version = 3
 name = "accessibility"
 version = "0.1.6"
 dependencies = [
- "accessibility-sys 0.1.3",
+ "accessibility-sys",
  "cocoa",
  "core-foundation",
  "core-graphics-types",
@@ -22,20 +22,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "accessibility-sys"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf09354dda54177da27bcb8b9b83d8cab947db1dc1538a310a5e9da1c57fd4c2"
-dependencies = [
- "core-foundation-sys",
-]
-
-[[package]]
 name = "awesome-rs"
 version = "0.1.0"
 dependencies = [
  "accessibility",
- "accessibility-sys 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "accessibility-sys",
  "core-foundation",
  "core-graphics 0.23.1",
 ]
