@@ -10,8 +10,13 @@
       let
         pkgs = import nixpkgs { inherit system; };
         naersk-lib = pkgs.callPackage naersk { };
+        buildInputs = with pkgs.darwin.apple_sdk.frameworks; [
+          AppKit
+          CoreGraphics
+        ];
       in {
         defaultPackage = naersk-lib.buildPackage {
+          inherit buildInputs;
           src = ./.;
           gitSubmodules = true;
         };
@@ -25,7 +30,7 @@
               rustc
               rustfmt
               rust-analyzer
-              (with pkgs.darwin.apple_sdk.frameworks; [ AppKit CoreGraphics ])
+              buildInputs
             ];
             RUST_SRC_PATH = rustPlatform.rustLibSrc;
           };
