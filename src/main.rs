@@ -226,8 +226,9 @@ fn main() {
                     KeyDown => {
                         let keycode =
                             event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE);
-                        println!("{}", keycode);
-                        match (&state.borrow().mode, keycode) {
+                        println!("KeyDown {}", keycode);
+                        let mut s = state.borrow_mut();
+                        match (&s.mode, keycode) {
                             (Mode::Normal, 4) => {
                                 // h
                                 let ws = WindowState::at_mouse_location(&system_wide_element);
@@ -257,6 +258,12 @@ fn main() {
                                     window_state.window.set_position(w as f64 / 2., 0.).unwrap();
                                     window_state.window.set_size(w as f64 / 2., h as f64).unwrap();
                                 }
+                                CGEventTapCallbackResult::Drop
+                            }
+                            (Mode::Normal, 53) => {
+                                // <ESC>
+                                s.mode = Mode::Insert;
+                                println!("Entered {:?} mode", s.mode);
                                 CGEventTapCallbackResult::Drop
                             }
                             _ => CGEventTapCallbackResult::Keep,
