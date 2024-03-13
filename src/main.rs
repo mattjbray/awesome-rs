@@ -132,7 +132,7 @@ impl Window {
     }
 
     /// Bring this window's application to front, and set this window as main.
-    fn activate(&self) -> Result<(), accessibility::Error> {
+    fn _activate(&self) -> Result<(), accessibility::Error> {
         let app = get_application(&self.0)?;
         app.set_attribute(&AXAttribute::frontmost(), true)?;
         self.0.set_main(true)
@@ -175,8 +175,8 @@ fn main() {
     let system_wide_element = AXUIElement::system_wide();
 
     let d = CGDisplay::main();
-    let w = d.pixels_wide();
-    let h = d.pixels_high();
+    let w = d.pixels_wide() as f64;
+    let h = d.pixels_high() as f64;
     println!("w:{} h:{}", w, h);
 
     let window_list: CFArray<*const c_void> = CGDisplay::window_list_info(
@@ -251,20 +251,20 @@ fn main() {
                         println!("KeyDown {}", keycode);
                         let mut s = state.borrow_mut();
                         match (&s.mode, keycode) {
-                            (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY) => {
-                                let window = Window::active(&system_wide_element);
-                                if let Ok(window) = window.as_ref() {
-                                    window.set_position(0., 0.).unwrap();
-                                    window.set_size(w as f64 / 2., h as f64).unwrap();
-                                }
-                                CGEventTapCallbackResult::Drop
-                            }
-
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_FULL_KEY) => {
                                 let window = Window::active(&system_wide_element);
                                 if let Ok(window) = window.as_ref() {
                                     window.set_position(0., 0.).unwrap();
-                                    window.set_size(w as f64, h as f64).unwrap();
+                                    window.set_size(w, h).unwrap();
+                                }
+                                CGEventTapCallbackResult::Drop
+                            }
+
+                            (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY) => {
+                                let window = Window::active(&system_wide_element);
+                                if let Ok(window) = window.as_ref() {
+                                    window.set_position(0., 0.).unwrap();
+                                    window.set_size(w / 2., h).unwrap();
                                 }
                                 CGEventTapCallbackResult::Drop
                             }
@@ -272,8 +272,8 @@ fn main() {
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY) => {
                                 let window = Window::active(&system_wide_element);
                                 if let Ok(window) = window.as_ref() {
-                                    window.set_position(w as f64 / 2., 0.).unwrap();
-                                    window.set_size(w as f64 / 2., h as f64).unwrap();
+                                    window.set_size(w / 2., h).unwrap();
+                                    window.set_position(w / 2., 0.).unwrap();
                                 }
                                 CGEventTapCallbackResult::Drop
                             }
