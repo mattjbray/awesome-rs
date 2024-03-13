@@ -201,14 +201,7 @@ fn main() {
 
                     FlagsChanged => {
                         let mut s = state.borrow_mut();
-                        if event.get_flags().contains(CGEventFlags::CGEventFlagCommand)
-                            && s.mode == Mode::Normal
-                        {
-                            s.window_state = WindowState::at_mouse_location(&system_wide_element);
-                            if let Some(window_state) = s.window_state.as_ref() {
-                                window_state.window.activate().unwrap()
-                            }
-                        } else if event
+                        if event
                             .get_flags()
                             .contains(CGEventFlags::CGEventFlagAlternate)
                             && event.get_flags().contains(CGEventFlags::CGEventFlagControl)
@@ -218,7 +211,14 @@ fn main() {
                                 Mode::Insert => Mode::Normal,
                             };
                             println!("Entered {:?} mode", s.mode);
-                        } else {
+                        } else if event.get_flags().contains(CGEventFlags::CGEventFlagAlternate)
+                            && s.mode == Mode::Normal
+                        {
+                            s.window_state = WindowState::at_mouse_location(&system_wide_element);
+                            if let Some(window_state) = s.window_state.as_ref() {
+                                window_state.window.activate().unwrap()
+                            }
+                        } else  {
                             s.window_state = None;
                         }
                         CGEventTapCallbackResult::Keep
