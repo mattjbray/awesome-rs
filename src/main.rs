@@ -13,8 +13,8 @@ use core_graphics::display::{
     CGSize,
 };
 use core_graphics::event::{
-    CGEvent, CGEventFlags, CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement,
-    CGEventType, EventField,
+    CGEvent, CGEventFlags, CGEventTap, CGEventTapCallbackResult, CGEventTapLocation,
+    CGEventTapOptions, CGEventTapPlacement, CGEventType, EventField,
 };
 
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
@@ -27,7 +27,7 @@ struct WindowState {
     mouse_offset: CGPoint,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Mode {
     Normal,
     Insert,
@@ -181,12 +181,12 @@ fn main() {
                         if let Some(state) = state.borrow().window_state.as_ref() {
                             state.position_around(&event.location())
                         }
-                        Some(event.clone())
+                        CGEventTapCallbackResult::Keep
                     }
 
                     FlagsChanged => {
                         let mut s = state.borrow_mut();
-                        if event.get_flags().contains(CGEventFlags::CGEventFlagCommand) {
+                        if event.get_flags().contains(CGEventFlags::CGEventFlagCommand) && s.mode == Mode::Normal {
                             s.window_state = WindowState::from_mouse_location(&system_wide_element);
                             if let Some(window_state) = s.window_state.as_ref() {
                                 window_state.activate()
@@ -204,7 +204,7 @@ fn main() {
                         } else {
                             s.window_state = None;
                         }
-                        Some(event.clone())
+                        CGEventTapCallbackResult::Keep
                     }
                     KeyDown => {
                         let keycode =
@@ -219,8 +219,7 @@ fn main() {
                                     window_state.position(0., 0.);
                                     window_state.resize(w as f64 / 2., h as f64);
                                 }
-
-                                None
+                                CGEventTapCallbackResult::Drop
                             }
 
                             (Mode::Normal, 36) => {
@@ -231,8 +230,7 @@ fn main() {
                                     window_state.position(0., 0.);
                                     window_state.resize(w as f64, h as f64);
                                 }
-
-                                None
+                                CGEventTapCallbackResult::Drop
                             }
                             (Mode::Normal, 37) => {
                                 // l
@@ -242,13 +240,12 @@ fn main() {
                                     window_state.position(w as f64 / 2., 0.);
                                     window_state.resize(w as f64 / 2., h as f64);
                                 }
-
-                                None
+                                CGEventTapCallbackResult::Drop
                             }
-                            _ => Some(event.clone()),
+                            _ => CGEventTapCallbackResult::Keep,
                         }
                     }
-                    _ => Some(event.clone()),
+                    _ => CGEventTapCallbackResult::Keep,
                 }
             },
         )

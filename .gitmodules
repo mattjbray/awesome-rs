@@ -1,3 +1,6 @@
 [submodule "vendor/accessibility"]
 	path = vendor/accessibility
 	url = git@github.com:mattjbray/accessibility.git
+[submodule "vendor/core-foundation-rs"]
+	path = vendor/core-foundation-rs
+	url = git@github.com:mattjbray/core-foundation-rs.git

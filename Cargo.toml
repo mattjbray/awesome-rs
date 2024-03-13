@@ -14,3 +14,7 @@ core-graphics = "0.23.1"
 [patch.crates-io]
 accessibility = { path = "./vendor/accessibility/accessibility" }
 accessibility-sys = { path = "./vendor/accessibility/accessibility-sys" }
+core-foundation = { path = "./vendor/core-foundation-rs/core-foundation" }
+core-foundation-sys = { path = "./vendor/core-foundation-rs/core-foundation-sys" }
+core-graphics = { path = "./vendor/core-foundation-rs/core-graphics" }
+core-graphics-types = { path = "./vendor/core-foundation-rs/core-graphics-types" }
