@@ -31,10 +31,9 @@ fn awesome_normal_mode_drag_window_flags() -> CGEventFlags {
     CGEventFlags::CGEventFlagAlternate
 }
 
-const AWESOME_NORMAL_MODE_INSERT_MODE_KEY:i64 = 53; // <ESC>
-const AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY:i64 = 4; // h
-const AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY:i64 = 37; // l
-const AWESOME_NORMAL_MODE_WINDOW_FULL_KEY:i64 = 36; // <ENTER>
+const AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY: i64 = 4; // h
+const AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY: i64 = 37; // l
+const AWESOME_NORMAL_MODE_WINDOW_FULL_KEY: i64 = 36; // <ENTER>
 
 #[derive(Debug)]
 struct Window(AXUIElement);
@@ -83,14 +82,7 @@ fn get_mouse_location() -> Result<CGPoint, ()> {
 }
 
 impl Window {
-    fn at_point(
-        system_wide_element: &AXUIElement,
-        point: &CGPoint,
-    ) -> Result<Self, accessibility::Error> {
-        let element = system_wide_element
-            .element_at_position(point.x as f32, point.y as f32)
-            .unwrap();
-
+    fn from_ui_element(element: AXUIElement) -> Result<Window, accessibility::Error> {
         let element_is_window = match element.role() {
             Ok(role) => role == CFString::from_static_string(accessibility_sys::kAXWindowRole),
             _ => false,
@@ -103,6 +95,22 @@ impl Window {
         }?;
 
         Ok(Self(window))
+    }
+
+    fn at_point(
+        system_wide_element: &AXUIElement,
+        point: &CGPoint,
+    ) -> Result<Self, accessibility::Error> {
+        let element = system_wide_element
+            .element_at_position(point.x as f32, point.y as f32)
+            .unwrap();
+
+        Self::from_ui_element(element)
+    }
+
+    fn active(system_wide_element: &AXUIElement) -> Result<Self, accessibility::Error> {
+        let element = system_wide_element.focused_uielement()?;
+        Self::from_ui_element(element)
     }
 
     fn get_position(&self) -> Result<CGPoint, accessibility::Error> {
@@ -229,9 +237,9 @@ fn main() {
                             && s.mode == Mode::Normal
                         {
                             s.window_state = WindowState::at_mouse_location(&system_wide_element);
-                            if let Some(window_state) = s.window_state.as_ref() {
-                                window_state.window.activate().unwrap()
-                            }
+                            // if let Some(window_state) = s.window_state.as_ref() {
+                            //     window_state.window.activate().unwrap()
+                            // }
                         } else {
                             s.window_state = None;
                         }
@@ -244,47 +252,39 @@ fn main() {
                         let mut s = state.borrow_mut();
                         match (&s.mode, keycode) {
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY) => {
-                                let ws = WindowState::at_mouse_location(&system_wide_element);
-                                if let Some(window_state) = ws.as_ref() {
-                                    window_state.window.activate().unwrap();
-                                    window_state.window.set_position(0., 0.).unwrap();
-                                    window_state
-                                        .window
-                                        .set_size(w as f64 / 2., h as f64)
-                                        .unwrap();
+                                let window = Window::active(&system_wide_element);
+                                if let Ok(window) = window.as_ref() {
+                                    window.set_position(0., 0.).unwrap();
+                                    window.set_size(w as f64 / 2., h as f64).unwrap();
                                 }
                                 CGEventTapCallbackResult::Drop
                             }
 
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_FULL_KEY) => {
-                                let ws = WindowState::at_mouse_location(&system_wide_element);
-                                if let Some(window_state) = ws.as_ref() {
-                                    window_state.window.activate().unwrap();
-                                    window_state.window.set_position(0., 0.).unwrap();
-                                    window_state.window.set_size(w as f64, h as f64).unwrap();
+                                let window = Window::active(&system_wide_element);
+                                if let Ok(window) = window.as_ref() {
+                                    window.set_position(0., 0.).unwrap();
+                                    window.set_size(w as f64, h as f64).unwrap();
                                 }
                                 CGEventTapCallbackResult::Drop
                             }
 
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY) => {
-                                let ws = WindowState::at_mouse_location(&system_wide_element);
-                                if let Some(window_state) = ws.as_ref() {
-                                    window_state.window.activate().unwrap();
-                                    window_state.window.set_position(w as f64 / 2., 0.).unwrap();
-                                    window_state
-                                        .window
-                                        .set_size(w as f64 / 2., h as f64)
-                                        .unwrap();
+                                let window = Window::active(&system_wide_element);
+                                if let Ok(window) = window.as_ref() {
+                                    window.set_position(w as f64 / 2., 0.).unwrap();
+                                    window.set_size(w as f64 / 2., h as f64).unwrap();
                                 }
                                 CGEventTapCallbackResult::Drop
                             }
-
-                            (Mode::Normal, AWESOME_NORMAL_MODE_INSERT_MODE_KEY) => {
-                                s.mode = Mode::Insert;
-                                println!("Entered {:?} mode", s.mode);
-                                CGEventTapCallbackResult::Drop
+                            _ => {
+                                // Enter Insert mode on any other key
+                                if s.mode != Mode::Insert {
+                                    s.mode = Mode::Insert;
+                                    println!("Entered {:?} mode", s.mode);
+                                }
+                                CGEventTapCallbackResult::Keep
                             }
-                            _ => CGEventTapCallbackResult::Keep,
                         }
                     }
                     _ => CGEventTapCallbackResult::Keep,
