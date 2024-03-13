@@ -125,10 +125,20 @@ impl Window {
         )
     }
 
+    fn get_size(&self) -> Result<CGSize, accessibility::Error> {
+        let value = self.0.size()?;
+        value.get_value()
+    }
+
     fn set_size(&self, w: f64, h: f64) -> Result<(), accessibility::Error> {
         let size = CGSize::new(w, h);
         self.0
             .set_attribute(&AXAttribute::size(), AXValue::from_CGSize(size).unwrap())
+    }
+
+    fn set_bounds(&self, x: f64, y: f64, w: f64, h: f64) -> Result<(), accessibility::Error> {
+        self.set_position(x, y)?;
+        self.set_size(w, h)
     }
 
     /// Bring this window's application to front, and set this window as main.
@@ -137,6 +147,19 @@ impl Window {
         app.set_attribute(&AXAttribute::frontmost(), true)?;
         self.0.set_main(true)
     }
+
+    fn get_display(&self) -> Result<CGDisplay, accessibility::Error> {
+        let position = self.get_position()?;
+        let (displays, _) = CGDisplay::displays_with_point(position, 1).unwrap();
+        let display_id = displays.first().ok_or(accessibility::Error::NotFound)?;
+        let display = CGDisplay::new(*display_id);
+        Ok(display)
+    }
+}
+
+fn display_bounds(display: &CGDisplay) -> (f64, f64, f64, f64) {
+    let b = display.bounds();
+    (b.origin.x, b.origin.y, b.size.width, b.size.height)
 }
 
 impl WindowState {
@@ -173,11 +196,6 @@ impl WindowState {
 
 fn main() {
     let system_wide_element = AXUIElement::system_wide();
-
-    let d = CGDisplay::main();
-    let w = d.pixels_wide() as f64;
-    let h = d.pixels_high() as f64;
-    println!("w:{} h:{}", w, h);
 
     let window_list: CFArray<*const c_void> = CGDisplay::window_list_info(
         kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
@@ -254,8 +272,8 @@ fn main() {
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_FULL_KEY) => {
                                 let window = Window::active(&system_wide_element);
                                 if let Ok(window) = window.as_ref() {
-                                    window.set_position(0., 0.).unwrap();
-                                    window.set_size(w, h).unwrap();
+                                    let (x, y, w, h) = display_bounds(&window.get_display().unwrap());
+                                    window.set_bounds(x, y, w, h).unwrap();
                                 }
                                 CGEventTapCallbackResult::Drop
                             }
@@ -263,8 +281,20 @@ fn main() {
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY) => {
                                 let window = Window::active(&system_wide_element);
                                 if let Ok(window) = window.as_ref() {
-                                    window.set_position(0., 0.).unwrap();
-                                    window.set_size(w / 2., h).unwrap();
+                                    let (x, y, w, h) = display_bounds(&window.get_display().unwrap());
+                                    let position = window.get_position().unwrap();
+                                    let size = window.get_size().unwrap();
+                                    if x > 0. && position.x == x && size.width == w / 2. {
+                                        let pos = CGPoint::new(x - 1.0, y);
+                                        let (displays, _) = CGDisplay::displays_with_point(pos, 1).unwrap();
+                                        if let Some(display_id) = displays.first() {
+                                            let display = CGDisplay::new(*display_id);
+                                            let (x, y, w, h) = display_bounds(&display);
+                                            window.set_bounds(x + w/2., y, w / 2., h).unwrap();
+                                        }
+                                    } else {
+                                        window.set_bounds(x, y, w / 2., h).unwrap();
+                                    }
                                 }
                                 CGEventTapCallbackResult::Drop
                             }
@@ -272,8 +302,20 @@ fn main() {
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY) => {
                                 let window = Window::active(&system_wide_element);
                                 if let Ok(window) = window.as_ref() {
-                                    window.set_size(w / 2., h).unwrap();
-                                    window.set_position(w / 2., 0.).unwrap();
+                                    let (x, y, w, h) = display_bounds(&window.get_display().unwrap());
+                                    let position = window.get_position().unwrap();
+                                    let size = window.get_size().unwrap();
+                                    if position.x == x + w / 2. && size.width == w / 2. {
+                                        let pos = CGPoint::new(x + w + 1.0, y);
+                                        let (displays, _) = CGDisplay::displays_with_point(pos, 1).unwrap();
+                                        if let Some(display_id) = displays.first() {
+                                            let display = CGDisplay::new(*display_id);
+                                            let (x, y, w, h) = display_bounds(&display);
+                                            window.set_bounds(x, y, w / 2., h).unwrap();
+                                        }
+                                    } else {
+                                        window.set_bounds(x + w / 2., y, w / 2., h).unwrap();
+                                    }
                                 }
                                 CGEventTapCallbackResult::Drop
                             }
