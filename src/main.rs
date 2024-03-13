@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::ffi::c_void;
 
 use accessibility::{AXAttribute, AXUIElement, AXUIElementAttributes, AXValue};
@@ -34,6 +35,8 @@ fn awesome_normal_mode_drag_window_flags() -> CGEventFlags {
 const AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY: i64 = 4; // h
 const AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY: i64 = 37; // l
 const AWESOME_NORMAL_MODE_WINDOW_FULL_KEY: i64 = 36; // <ENTER>
+const AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY: i64 = 38; // j
+const AWESOME_NORMAL_MODE_PREV_WINDOW_KEY: i64 = 40; // k
 
 #[derive(Debug)]
 struct Window(AXUIElement);
@@ -54,6 +57,7 @@ enum Mode {
 struct State {
     window_state: Option<WindowState>,
     mode: Mode,
+    active_window: (usize, usize),
 }
 
 impl State {
@@ -61,6 +65,7 @@ impl State {
         State {
             window_state: None,
             mode: Mode::Insert,
+            active_window: (0, 0),
         }
     }
 }
@@ -202,25 +207,31 @@ fn main() {
         None,
     )
     .unwrap();
-    println!(
-        "{:?}",
-        window_list
-            .iter()
-            .map(|w| unsafe { CFDictionary::from_void(*w) })
-            .filter(|d: &ItemRef<CFDictionary>| {
-                let l: CFString = unsafe { CFString::wrap_under_create_rule(kCGWindowLayer) };
-                let layer_void: ItemRef<'_, *const c_void> = d.get(l.to_void());
-                let layer = unsafe { CFNumber::from_void(*layer_void) };
-                layer.to_i32() == Some(0)
-            })
-            .filter_map(|d| {
-                let k: CFString = unsafe { CFString::wrap_under_create_rule(kCGWindowOwnerPID) };
-                let pid = d.get(k.to_void());
-                let pid = unsafe { CFNumber::from_void(*pid) };
-                pid.to_i64()
-            })
-            .collect::<Vec<_>>()
-    );
+    let window_pids: HashSet<i64> = window_list
+        .iter()
+        .map(|w| unsafe { CFDictionary::from_void(*w) })
+        .filter(|d: &ItemRef<CFDictionary>| {
+            // Keep only windows at layer 0
+            let l: CFString = unsafe { CFString::wrap_under_create_rule(kCGWindowLayer) };
+            let layer_void: ItemRef<'_, *const c_void> = d.get(l.to_void());
+            let layer = unsafe { CFNumber::from_void(*layer_void) };
+            layer.to_i32() == Some(0)
+        })
+        .filter_map(|d| {
+            let k: CFString = unsafe { CFString::wrap_under_create_rule(kCGWindowOwnerPID) };
+            let pid = d.get(k.to_void());
+            let pid = unsafe { CFNumber::from_void(*pid) };
+            pid.to_i64()
+        })
+        .collect();
+    println!("window pids: {:?}", window_pids);
+    let apps = window_pids
+        .iter()
+        .map(|pid| AXUIElement::application(*pid as i32))
+        .collect::<Vec<_>>();
+    println!("apps: {:?}", apps);
+    let app_windows: Vec<_> = apps.iter().map(|a| a.windows().unwrap()).collect();
+    println!("app windows: {:?}", app_windows);
 
     let state: RefCell<State> = RefCell::new(State::new());
 
@@ -272,7 +283,8 @@ fn main() {
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_FULL_KEY) => {
                                 let window = Window::active(&system_wide_element);
                                 if let Ok(window) = window.as_ref() {
-                                    let (x, y, w, h) = display_bounds(&window.get_display().unwrap());
+                                    let (x, y, w, h) =
+                                        display_bounds(&window.get_display().unwrap());
                                     window.set_bounds(x, y, w, h).unwrap();
                                 }
                                 CGEventTapCallbackResult::Drop
@@ -281,16 +293,18 @@ fn main() {
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY) => {
                                 let window = Window::active(&system_wide_element);
                                 if let Ok(window) = window.as_ref() {
-                                    let (x, y, w, h) = display_bounds(&window.get_display().unwrap());
+                                    let (x, y, w, h) =
+                                        display_bounds(&window.get_display().unwrap());
                                     let position = window.get_position().unwrap();
                                     let size = window.get_size().unwrap();
                                     if x > 0. && position.x == x && size.width == w / 2. {
                                         let pos = CGPoint::new(x - 1.0, y);
-                                        let (displays, _) = CGDisplay::displays_with_point(pos, 1).unwrap();
+                                        let (displays, _) =
+                                            CGDisplay::displays_with_point(pos, 1).unwrap();
                                         if let Some(display_id) = displays.first() {
                                             let display = CGDisplay::new(*display_id);
                                             let (x, y, w, h) = display_bounds(&display);
-                                            window.set_bounds(x + w/2., y, w / 2., h).unwrap();
+                                            window.set_bounds(x + w / 2., y, w / 2., h).unwrap();
                                         }
                                     } else {
                                         window.set_bounds(x, y, w / 2., h).unwrap();
@@ -302,12 +316,14 @@ fn main() {
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY) => {
                                 let window = Window::active(&system_wide_element);
                                 if let Ok(window) = window.as_ref() {
-                                    let (x, y, w, h) = display_bounds(&window.get_display().unwrap());
+                                    let (x, y, w, h) =
+                                        display_bounds(&window.get_display().unwrap());
                                     let position = window.get_position().unwrap();
                                     let size = window.get_size().unwrap();
                                     if position.x == x + w / 2. && size.width == w / 2. {
                                         let pos = CGPoint::new(x + w + 1.0, y);
-                                        let (displays, _) = CGDisplay::displays_with_point(pos, 1).unwrap();
+                                        let (displays, _) =
+                                            CGDisplay::displays_with_point(pos, 1).unwrap();
                                         if let Some(display_id) = displays.first() {
                                             let display = CGDisplay::new(*display_id);
                                             let (x, y, w, h) = display_bounds(&display);
@@ -319,6 +335,59 @@ fn main() {
                                 }
                                 CGEventTapCallbackResult::Drop
                             }
+
+                            (Mode::Normal, AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY) => {
+                                let current_app_windows =
+                                    app_windows.get(s.active_window.0).unwrap();
+                                s.active_window.1 += 1;
+                                if s.active_window.1 as isize >= current_app_windows.len().into() {
+                                    s.active_window.0 += 1;
+                                    s.active_window.1 = 0;
+                                }
+                                if s.active_window.0 >= app_windows.len() {
+                                    s.active_window.0 = 0;
+                                }
+
+                                let w = app_windows
+                                    .get(s.active_window.0)
+                                    .unwrap()
+                                    .get(s.active_window.1 as isize)
+                                    .unwrap();
+                                get_application(&w)
+                                    .unwrap()
+                                    .set_attribute(&AXAttribute::frontmost(), true)
+                                    .unwrap();
+                                w.set_main(true).unwrap();
+                                CGEventTapCallbackResult::Drop
+                            }
+
+                            (Mode::Normal, AWESOME_NORMAL_MODE_PREV_WINDOW_KEY) => {
+                                if s.active_window.1 == 0 {
+                                    if s.active_window.0 == 0 {
+                                        s.active_window.0 = app_windows.len() - 1;
+                                    } else {
+                                        s.active_window.0 -= 1;
+                                    }
+                                    s.active_window.1 =
+                                        app_windows.get(s.active_window.0).unwrap().len() as usize
+                                            - 1;
+                                } else {
+                                    s.active_window.1 -= 1;
+                                }
+
+                                let w = app_windows
+                                    .get(s.active_window.0)
+                                    .unwrap()
+                                    .get(s.active_window.1 as isize)
+                                    .unwrap();
+                                get_application(&w)
+                                    .unwrap()
+                                    .set_attribute(&AXAttribute::frontmost(), true)
+                                    .unwrap();
+                                w.set_main(true).unwrap();
+                                CGEventTapCallbackResult::Drop
+                            }
+
                             _ => {
                                 // Enter Insert mode on any other key
                                 if s.mode != Mode::Insert {
