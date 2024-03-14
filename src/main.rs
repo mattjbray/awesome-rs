@@ -123,8 +123,8 @@ fn get_application(element: &AXUIElement) -> Result<AXUIElement, accessibility::
     if role == CFString::from_static_string(kAXApplicationRole) {
         Ok(element.clone())
     } else {
-        let parent = element.parent()?;
-        get_application(&parent)
+        let pid = element.pid()?;
+        Ok(AXUIElement::application(pid))
     }
 }
 
