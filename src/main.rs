@@ -58,17 +58,63 @@ struct State {
     window_state: Option<WindowState>,
     mode: Mode,
     active_window: usize,
+    app_windows: Vec<CFArray<AXUIElement>>,
     window_idxs: Vec<(usize, isize)>,
 }
 
 impl State {
-    fn new() -> Self {
+    fn new(app_windows: Vec<CFArray<AXUIElement>>) -> Self {
+        let window_idxs = app_windows
+            .iter()
+            .enumerate()
+            .flat_map(|(i, arr)| (0..(arr.len())).into_iter().map(move |j| (i, j)))
+            .collect();
         State {
             window_state: None,
             mode: Mode::Insert,
             active_window: 0,
-            window_idxs: vec![],
+            app_windows,
+            window_idxs,
         }
+    }
+
+    fn update_active_window(&self) -> Result<(), accessibility::Error> {
+        let (i, j) = self
+            .window_idxs
+            .get(self.active_window)
+            .ok_or(accessibility::Error::NotFound)?;
+        let app_ws = self
+            .app_windows
+            .get(*i)
+            .ok_or(accessibility::Error::NotFound)?;
+        let w = app_ws.get(*j).ok_or(accessibility::Error::NotFound)?;
+        window_activate(&w)
+    }
+
+    fn incr_active_window(&mut self) {
+        if self.active_window >= self.window_idxs.len() - 1 {
+            self.active_window = 0;
+        } else {
+            self.active_window += 1;
+        }
+    }
+
+    fn decr_active_window(&mut self) {
+        if self.active_window == 0 {
+            self.active_window = self.window_idxs.len() - 1;
+        } else {
+            self.active_window -= 1;
+        }
+    }
+
+    fn next_window(&mut self) -> Result<(), accessibility::Error> {
+        self.incr_active_window();
+        self.update_active_window()
+    }
+
+    fn prev_window(&mut self) -> Result<(), accessibility::Error> {
+        self.decr_active_window();
+        self.update_active_window()
     }
 }
 
@@ -150,9 +196,7 @@ impl Window {
 
     /// Bring this window's application to front, and set this window as main.
     fn _activate(&self) -> Result<(), accessibility::Error> {
-        let app = get_application(&self.0)?;
-        app.set_attribute(&AXAttribute::frontmost(), true)?;
-        self.0.set_main(true)
+        window_activate(&self.0)
     }
 
     fn get_display(&self) -> Result<CGDisplay, accessibility::Error> {
@@ -162,6 +206,12 @@ impl Window {
         let display = CGDisplay::new(*display_id);
         Ok(display)
     }
+}
+
+fn window_activate(window: &AXUIElement) -> Result<(), accessibility::Error> {
+    let app = get_application(&window)?;
+    app.set_attribute(&AXAttribute::frontmost(), true)?;
+    window.set_main(true)
 }
 
 fn display_bounds(display: &CGDisplay) -> (f64, f64, f64, f64) {
@@ -235,13 +285,7 @@ fn main() {
     let app_windows: Vec<_> = apps.iter().map(|a| a.windows().unwrap()).collect();
     println!("app windows: {:?}", app_windows);
 
-    let state: RefCell<State> = RefCell::new(State::new());
-
-    state.borrow_mut().window_idxs = app_windows
-        .iter()
-        .enumerate()
-        .flat_map(|(i, arr)| (0..(arr.len())).into_iter().map(move |j| (i, j)))
-        .collect();
+    let state: RefCell<State> = RefCell::new(State::new(app_windows));
 
     let event_tap = {
         use CGEventType::*;
@@ -345,34 +389,12 @@ fn main() {
                             }
 
                             (Mode::Normal, AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY) => {
-                                if s.active_window >= s.window_idxs.len() - 1 {
-                                    s.active_window = 0;
-                                } else {
-                                    s.active_window += 1;
-                                }
-                                let (i, j) = s.window_idxs.get(s.active_window).unwrap();
-                                let w = app_windows.get(*i).unwrap().get(*j).unwrap();
-                                get_application(&w)
-                                    .unwrap()
-                                    .set_attribute(&AXAttribute::frontmost(), true)
-                                    .unwrap();
-                                w.set_main(true).unwrap();
+                                s.next_window().unwrap();
                                 CGEventTapCallbackResult::Drop
                             }
 
                             (Mode::Normal, AWESOME_NORMAL_MODE_PREV_WINDOW_KEY) => {
-                                if s.active_window == 0 {
-                                    s.active_window = s.window_idxs.len() - 1;
-                                } else {
-                                    s.active_window -= 1;
-                                }
-                                let (i, j) = s.window_idxs.get(s.active_window).unwrap();
-                                let w = app_windows.get(*i).unwrap().get(*j).unwrap();
-                                get_application(&w)
-                                    .unwrap()
-                                    .set_attribute(&AXAttribute::frontmost(), true)
-                                    .unwrap();
-                                w.set_main(true).unwrap();
+                                s.prev_window().unwrap();
                                 CGEventTapCallbackResult::Drop
                             }
 
