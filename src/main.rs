@@ -172,10 +172,17 @@ impl Window {
     }
 
     fn set_position(&self, x: f64, y: f64) -> Result<(), accessibility::Error> {
+        let position = CGPoint::new(x, y);
         self.0.set_attribute(
             &AXAttribute::position(),
-            AXValue::from_CGPoint(CGPoint::new(x, y)).unwrap(),
-        )
+            AXValue::from_CGPoint(position).unwrap(),
+        )?;
+        println!(
+            "set_position desired:{:?} result:{:?}",
+            position,
+            self.get_position()
+        );
+        Ok(())
     }
 
     fn get_size(&self) -> Result<CGSize, accessibility::Error> {
@@ -186,7 +193,9 @@ impl Window {
     fn set_size(&self, w: f64, h: f64) -> Result<(), accessibility::Error> {
         let size = CGSize::new(w, h);
         self.0
-            .set_attribute(&AXAttribute::size(), AXValue::from_CGSize(size).unwrap())
+            .set_attribute(&AXAttribute::size(), AXValue::from_CGSize(size).unwrap())?;
+        println!("set_size desired:{:?} result:{:?}", size, self.get_size());
+        Ok(())
     }
 
     fn set_bounds(&self, x: f64, y: f64, w: f64, h: f64) -> Result<(), accessibility::Error> {
