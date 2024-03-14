@@ -78,7 +78,7 @@ impl State {
         }
     }
 
-    fn update_active_window(&self) -> Result<(), accessibility::Error> {
+    fn activate_active_window(&self) -> Result<(), accessibility::Error> {
         let (i, j) = self
             .window_idxs
             .get(self.active_window)
@@ -109,12 +109,12 @@ impl State {
 
     fn next_window(&mut self) -> Result<(), accessibility::Error> {
         self.incr_active_window();
-        self.update_active_window()
+        self.activate_active_window()
     }
 
     fn prev_window(&mut self) -> Result<(), accessibility::Error> {
         self.decr_active_window();
-        self.update_active_window()
+        self.activate_active_window()
     }
 }
 
