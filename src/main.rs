@@ -198,7 +198,7 @@ impl Window {
         Ok(())
     }
 
-    fn set_bounds(&self, x: f64, y: f64, w: f64, h: f64) -> Result<(), accessibility::Error> {
+    fn set_frame(&self, x: f64, y: f64, w: f64, h: f64) -> Result<(), accessibility::Error> {
         self.set_position(x, y)?;
         self.set_size(w, h)
     }
@@ -344,7 +344,7 @@ fn main() {
                                 if let Ok(window) = window.as_ref() {
                                     let (x, y, w, h) =
                                         display_bounds(&window.get_display().unwrap());
-                                    window.set_bounds(x, y, w, h).unwrap();
+                                    window.set_frame(x, y, w, h).unwrap();
                                 }
                                 CGEventTapCallbackResult::Drop
                             }
@@ -363,10 +363,10 @@ fn main() {
                                         if let Some(display_id) = displays.first() {
                                             let display = CGDisplay::new(*display_id);
                                             let (x, y, w, h) = display_bounds(&display);
-                                            window.set_bounds(x + w / 2., y, w / 2., h).unwrap();
+                                            window.set_frame(x + w / 2., y, w / 2., h).unwrap();
                                         }
                                     } else {
-                                        window.set_bounds(x, y, w / 2., h).unwrap();
+                                        window.set_frame(x, y, w / 2., h).unwrap();
                                     }
                                 }
                                 CGEventTapCallbackResult::Drop
@@ -386,10 +386,10 @@ fn main() {
                                         if let Some(display_id) = displays.first() {
                                             let display = CGDisplay::new(*display_id);
                                             let (x, y, w, h) = display_bounds(&display);
-                                            window.set_bounds(x, y, w / 2., h).unwrap();
+                                            window.set_frame(x, y, w / 2., h).unwrap();
                                         }
                                     } else {
-                                        window.set_bounds(x + w / 2., y, w / 2., h).unwrap();
+                                        window.set_frame(x + w / 2., y, w / 2., h).unwrap();
                                     }
                                 }
                                 CGEventTapCallbackResult::Drop
