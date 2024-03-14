@@ -39,6 +39,7 @@ const AWESOME_NORMAL_MODE_WINDOW_FULL_KEY: i64 = 36; // <ENTER>
 const AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY: i64 = 38; // j
 const AWESOME_NORMAL_MODE_PREV_WINDOW_KEY: i64 = 40; // k
 
+#[allow(non_upper_case_globals)]
 const kAXEnhancedUserInterfaceAttribute: &str = "AXEnhancedUserInterface";
 
 #[derive(Debug)]
