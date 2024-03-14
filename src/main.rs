@@ -78,7 +78,7 @@ impl State {
         }
     }
 
-    fn activate_active_window(&self) -> Result<(), accessibility::Error> {
+    fn get_active_window(&self) -> Result<ItemRef<'_, AXUIElement>, accessibility::Error> {
         let (i, j) = self
             .window_idxs
             .get(self.active_window)
@@ -87,7 +87,11 @@ impl State {
             .app_windows
             .get(*i)
             .ok_or(accessibility::Error::NotFound)?;
-        let w = app_ws.get(*j).ok_or(accessibility::Error::NotFound)?;
+        app_ws.get(*j).ok_or(accessibility::Error::NotFound)
+    }
+
+    fn activate_active_window(&self) -> Result<(), accessibility::Error> {
+        let w = self.get_active_window()?;
         window_activate(&w)
     }
 
