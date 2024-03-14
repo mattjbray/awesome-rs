@@ -157,11 +157,8 @@ impl Window {
         Ok(Self(window))
     }
 
-    fn at_point(
-        system_wide_element: &AXUIElement,
-        point: &CGPoint,
-    ) -> Result<Self, accessibility::Error> {
-        let element = system_wide_element
+    fn at_point(point: &CGPoint) -> Result<Self, accessibility::Error> {
+        let element = AXUIElement::system_wide()
             .element_at_position(point.x as f32, point.y as f32)
             .unwrap();
 
@@ -273,7 +270,7 @@ impl WindowState {
 
     fn at_mouse_location() -> Option<Self> {
         let mouse_location = get_mouse_location().unwrap();
-        let window = Window::at_point(&AXUIElement::system_wide(), &mouse_location);
+        let window = Window::at_point(&mouse_location);
 
         window
             .map(|window| {
