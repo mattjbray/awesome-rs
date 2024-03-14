@@ -57,7 +57,8 @@ enum Mode {
 struct State {
     window_state: Option<WindowState>,
     mode: Mode,
-    active_window: (usize, usize),
+    active_window: usize,
+    window_idxs: Vec<(usize, isize)>,
 }
 
 impl State {
@@ -65,7 +66,8 @@ impl State {
         State {
             window_state: None,
             mode: Mode::Insert,
-            active_window: (0, 0),
+            active_window: 0,
+            window_idxs: vec![],
         }
     }
 }
@@ -235,6 +237,12 @@ fn main() {
 
     let state: RefCell<State> = RefCell::new(State::new());
 
+    state.borrow_mut().window_idxs = app_windows
+        .iter()
+        .enumerate()
+        .flat_map(|(i, arr)| (0..(arr.len())).into_iter().map(move |j| (i, j)))
+        .collect();
+
     let event_tap = {
         use CGEventType::*;
         CGEventTap::new(
@@ -337,22 +345,13 @@ fn main() {
                             }
 
                             (Mode::Normal, AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY) => {
-                                let current_app_windows =
-                                    app_windows.get(s.active_window.0).unwrap();
-                                s.active_window.1 += 1;
-                                if s.active_window.1 as isize >= current_app_windows.len().into() {
-                                    s.active_window.0 += 1;
-                                    s.active_window.1 = 0;
+                                if s.active_window >= s.window_idxs.len() - 1 {
+                                    s.active_window = 0;
+                                } else {
+                                    s.active_window += 1;
                                 }
-                                if s.active_window.0 >= app_windows.len() {
-                                    s.active_window.0 = 0;
-                                }
-
-                                let w = app_windows
-                                    .get(s.active_window.0)
-                                    .unwrap()
-                                    .get(s.active_window.1 as isize)
-                                    .unwrap();
+                                let (i, j) = s.window_idxs.get(s.active_window).unwrap();
+                                let w = app_windows.get(*i).unwrap().get(*j).unwrap();
                                 get_application(&w)
                                     .unwrap()
                                     .set_attribute(&AXAttribute::frontmost(), true)
@@ -362,24 +361,13 @@ fn main() {
                             }
 
                             (Mode::Normal, AWESOME_NORMAL_MODE_PREV_WINDOW_KEY) => {
-                                if s.active_window.1 == 0 {
-                                    if s.active_window.0 == 0 {
-                                        s.active_window.0 = app_windows.len() - 1;
-                                    } else {
-                                        s.active_window.0 -= 1;
-                                    }
-                                    s.active_window.1 =
-                                        app_windows.get(s.active_window.0).unwrap().len() as usize
-                                            - 1;
+                                if s.active_window == 0 {
+                                    s.active_window = s.window_idxs.len() - 1;
                                 } else {
-                                    s.active_window.1 -= 1;
+                                    s.active_window -= 1;
                                 }
-
-                                let w = app_windows
-                                    .get(s.active_window.0)
-                                    .unwrap()
-                                    .get(s.active_window.1 as isize)
-                                    .unwrap();
+                                let (i, j) = s.window_idxs.get(s.active_window).unwrap();
+                                let w = app_windows.get(*i).unwrap().get(*j).unwrap();
                                 get_application(&w)
                                     .unwrap()
                                     .set_attribute(&AXAttribute::frontmost(), true)
