@@ -161,8 +161,8 @@ impl Window {
         Self::from_ui_element(element)
     }
 
-    fn active(system_wide_element: &AXUIElement) -> Result<Self, accessibility::Error> {
-        let element = system_wide_element.focused_uielement()?;
+    fn active() -> Result<Self, accessibility::Error> {
+        let element = AXUIElement::system_wide().focused_uielement()?;
         Self::from_ui_element(element)
     }
 
@@ -227,9 +227,9 @@ impl WindowState {
         }
     }
 
-    fn at_mouse_location(system_wide_element: &AXUIElement) -> Option<Self> {
+    fn at_mouse_location() -> Option<Self> {
         let mouse_location = get_mouse_location().unwrap();
-        let window = Window::at_point(system_wide_element, &mouse_location);
+        let window = Window::at_point(&AXUIElement::system_wide(), &mouse_location);
 
         window
             .map(|window| {
@@ -252,8 +252,6 @@ impl WindowState {
 }
 
 fn main() {
-    let system_wide_element = AXUIElement::system_wide();
-
     let window_list: CFArray<*const c_void> = CGDisplay::window_list_info(
         kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
         None,
@@ -317,7 +315,7 @@ fn main() {
                             .contains(awesome_normal_mode_drag_window_flags())
                             && s.mode == Mode::Normal
                         {
-                            s.window_state = WindowState::at_mouse_location(&system_wide_element);
+                            s.window_state = WindowState::at_mouse_location();
                             // if let Some(window_state) = s.window_state.as_ref() {
                             //     window_state.window.activate().unwrap()
                             // }
@@ -333,7 +331,7 @@ fn main() {
                         let mut s = state.borrow_mut();
                         match (&s.mode, keycode) {
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_FULL_KEY) => {
-                                let window = Window::active(&system_wide_element);
+                                let window = Window::active();
                                 if let Ok(window) = window.as_ref() {
                                     let (x, y, w, h) =
                                         display_bounds(&window.get_display().unwrap());
@@ -343,7 +341,7 @@ fn main() {
                             }
 
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY) => {
-                                let window = Window::active(&system_wide_element);
+                                let window = Window::active();
                                 if let Ok(window) = window.as_ref() {
                                     let (x, y, w, h) =
                                         display_bounds(&window.get_display().unwrap());
@@ -366,7 +364,7 @@ fn main() {
                             }
 
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY) => {
-                                let window = Window::active(&system_wide_element);
+                                let window = Window::active();
                                 if let Ok(window) = window.as_ref() {
                                     let (x, y, w, h) =
                                         display_bounds(&window.get_display().unwrap());
