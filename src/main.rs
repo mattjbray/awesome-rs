@@ -5,7 +5,8 @@ use std::ffi::c_void;
 use accessibility::{AXAttribute, AXUIElement, AXUIElementAttributes, AXValue};
 use accessibility_sys::kAXApplicationRole;
 use core_foundation::array::CFArray;
-use core_foundation::base::{FromVoid, ItemRef, TCFType, ToVoid};
+use core_foundation::base::{CFType, FromVoid, ItemRef, TCFType, ToVoid};
+use core_foundation::boolean::CFBoolean;
 use core_foundation::number::CFNumber;
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
 use core_foundation::string::CFString;
@@ -37,6 +38,8 @@ const AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY: i64 = 37; // l
 const AWESOME_NORMAL_MODE_WINDOW_FULL_KEY: i64 = 36; // <ENTER>
 const AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY: i64 = 38; // j
 const AWESOME_NORMAL_MODE_PREV_WINDOW_KEY: i64 = 40; // k
+
+const kAXEnhancedUserInterfaceAttribute: &str = "AXEnhancedUserInterface";
 
 #[derive(Debug)]
 struct Window(AXUIElement);
@@ -202,7 +205,35 @@ impl Window {
         Ok(())
     }
 
+    fn application(&self) -> Result<AXUIElement, accessibility::Error> {
+        get_application(&self.0)
+    }
+
     fn set_frame(&self, x: f64, y: f64, w: f64, h: f64) -> Result<(), accessibility::Error> {
+        let app = self.application()?;
+        let enhanced_user_interface: AXAttribute<CFType> = AXAttribute::new(
+            &CFString::from_static_string(kAXEnhancedUserInterfaceAttribute),
+        );
+        let is_enhanced_ui: bool = app
+            .attribute(&enhanced_user_interface)?
+            .downcast_into::<CFBoolean>()
+            .unwrap()
+            .into();
+        if is_enhanced_ui {
+            // This seems to always fail with error kAXErrorNotImplemented: -25208
+            // But it still has the desired effect.
+            let result = app.set_attribute(
+                &enhanced_user_interface,
+                CFBoolean::false_value().as_CFType(),
+            );
+            match result {
+                Ok(())
+                | Err(accessibility::Error::Ax(accessibility_sys::kAXErrorNotImplemented)) => (),
+                Err(_) => return result,
+            }
+        }
+
+        self.set_size(w, h)?;
         self.set_position(x, y)?;
         self.set_size(w, h)
     }
@@ -372,6 +403,8 @@ fn main() {
                                     } else {
                                         window.set_frame(x, y, w / 2., h).unwrap();
                                     }
+                                } else {
+                                    println!("No active window")
                                 }
                                 CGEventTapCallbackResult::Drop
                             }
@@ -395,6 +428,8 @@ fn main() {
                                     } else {
                                         window.set_frame(x + w / 2., y, w / 2., h).unwrap();
                                     }
+                                } else {
+                                    println!("No active window")
                                 }
                                 CGEventTapCallbackResult::Drop
                             }
