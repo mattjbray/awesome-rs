@@ -4,7 +4,8 @@ use std::ffi::c_void;
 use std::ops::Deref;
 
 use accessibility::{AXUIElement, AXUIElementAttributes};
-use awesome_rs::Window;
+use anyhow::{anyhow, Result};
+use awesome_rs::{CGErrorWrapper, Window};
 use core_foundation::array::CFArray;
 use core_foundation::base::{FromVoid, ItemRef, TCFType, ToVoid};
 use core_foundation::number::CFNumber;
@@ -79,9 +80,7 @@ impl State {
         }
     }
 
-    fn get_active_window(
-        &self,
-    ) -> Result<WindowWrapper<ItemRef<'_, AXUIElement>>, accessibility::Error> {
+    fn get_active_window(&self) -> Result<WindowWrapper<ItemRef<'_, AXUIElement>>> {
         let (i, j) = self
             .window_idxs
             .get(self.active_window)
@@ -94,7 +93,7 @@ impl State {
         Ok(WindowWrapper(w))
     }
 
-    fn activate_active_window(&self) -> Result<(), accessibility::Error> {
+    fn activate_active_window(&self) -> Result<()> {
         let w = self.get_active_window()?;
         w.activate()
     }
@@ -115,25 +114,84 @@ impl State {
         }
     }
 
-    fn next_window(&mut self) -> Result<(), accessibility::Error> {
+    fn next_window(&mut self) -> Result<()> {
         self.incr_active_window();
         self.activate_active_window()
     }
 
-    fn prev_window(&mut self) -> Result<(), accessibility::Error> {
+    fn prev_window(&mut self) -> Result<()> {
         self.decr_active_window();
         self.activate_active_window()
     }
+
+    fn set_active_window_full(&self) -> Result<()> {
+        let window = self.get_active_window()?;
+        let display = window.display()?;
+        window.set_frame(display.bounds())?;
+        Ok(())
+    }
+
+    fn set_active_window_left(&self) -> Result<()> {
+        let window = self.get_active_window()?;
+        let d = window.display()?.bounds();
+        let w = window.frame()?;
+        if d.origin.x > 0. && w.origin.x == d.origin.x && w.size.width == d.size.width / 2. {
+            // Already at left: move to previous display.
+            let pos = CGPoint::new(d.origin.x - 1.0, d.origin.y);
+            let (displays, _) =
+                CGDisplay::displays_with_point(pos, 1).map_err(|e| CGErrorWrapper(e))?;
+
+            if let Some(display_id) = displays.first() {
+                let d = CGDisplay::new(*display_id).bounds();
+                window.set_frame(CGRect::new(
+                    &CGPoint::new(d.origin.x + d.size.width / 2., d.origin.y),
+                    &CGSize::new(d.size.width / 2., d.size.height),
+                ))
+            } else {
+                Ok(())
+            }
+        } else {
+            window.set_frame(CGRect::new(
+                &d.origin,
+                &CGSize::new(d.size.width / 2., d.size.height),
+            ))
+        }
+    }
+
+    fn set_active_window_right(&self) -> Result<()> {
+        let window = self.get_active_window()?;
+        let d = window.display()?.bounds();
+        let w = window.frame()?;
+        if w.origin.x == d.origin.x + d.size.width / 2. && w.size.width == d.size.width / 2. {
+            let pos = CGPoint::new(d.origin.x + d.size.width + 1.0, d.origin.y);
+            let (displays, _) = CGDisplay::displays_with_point(pos, 1).map_err(CGErrorWrapper)?;
+            if let Some(display_id) = displays.first() {
+                let d = CGDisplay::new(*display_id).bounds();
+                window.set_frame(CGRect::new(
+                    &d.origin,
+                    &CGSize::new(d.size.width / 2., d.size.height),
+                ))
+            } else {
+                Ok(())
+            }
+        } else {
+            window.set_frame(CGRect::new(
+                &CGPoint::new(d.origin.x + d.size.width / 2., d.origin.y),
+                &CGSize::new(d.size.width / 2., d.size.height),
+            ))
+        }
+    }
 }
 
-fn get_mouse_location() -> Result<CGPoint, ()> {
-    CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
-        .and_then(CGEvent::new)
-        .map(|e| e.location())
+fn get_mouse_location() -> Result<CGPoint> {
+    let event_source = CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
+        .map_err(|()| anyhow!("Failed to create CGEventSource"))?;
+    let event = CGEvent::new(event_source).map_err(|()| anyhow!("Failed to create GCEvent"))?;
+    Ok(event.location())
 }
 
 impl WindowWrapper<AXUIElement> {
-    fn from_ui_element(element: AXUIElement) -> Result<Self, accessibility::Error> {
+    fn from_ui_element(element: AXUIElement) -> Result<Self> {
         let element_is_window = match element.role() {
             Ok(role) => role == CFString::from_static_string(accessibility_sys::kAXWindowRole),
             _ => false,
@@ -148,15 +206,25 @@ impl WindowWrapper<AXUIElement> {
         Ok(Self(window))
     }
 
-    fn at_point(point: &CGPoint) -> Result<Self, accessibility::Error> {
-        let element = AXUIElement::system_wide()
-            .element_at_position(point.x as f32, point.y as f32)
-            .unwrap();
+    fn at_point(point: &CGPoint) -> Result<Option<Self>> {
+        let result = AXUIElement::system_wide().element_at_position(point.x as f32, point.y as f32);
+        let result = match result {
+            Ok(el) => Ok(Some(el)),
+            Err(accessibility::Error::Ax(accessibility_sys::kAXErrorNoValue)) => Ok(None),
+            Err(e) => Err(e),
+        };
+        let element = result?;
 
-        Self::from_ui_element(element)
+        match element {
+            None => Ok(None),
+            Some(element) => {
+                let w = Self::from_ui_element(element)?;
+                Ok(Some(w))
+            }
+        }
     }
 
-    fn active() -> Result<Self, accessibility::Error> {
+    fn _active() -> Result<Self> {
         let element = AXUIElement::system_wide().focused_uielement()?;
         Self::from_ui_element(element)
     }
@@ -182,23 +250,23 @@ impl WindowState {
         }
     }
 
-    fn at_mouse_location() -> Option<Self> {
-        let mouse_location = get_mouse_location().unwrap();
-        let window = WindowWrapper::at_point(&mouse_location);
-
-        window
-            .map(|window| {
-                let window_pos: CGPoint = window.position().unwrap();
+    fn at_mouse_location() -> Result<Option<Self>> {
+        let mouse_location = get_mouse_location()?;
+        let window = WindowWrapper::at_point(&mouse_location)?;
+        match window {
+            None => Ok(None),
+            Some(window) => {
+                let window_pos: CGPoint = window.position()?;
                 let mouse_offset = CGPoint::new(
                     mouse_location.x - window_pos.x,
                     mouse_location.y - window_pos.y,
                 );
-                Self::new(window, mouse_offset)
-            })
-            .ok()
+                Ok(Some(Self::new(window, mouse_offset)))
+            }
+        }
     }
 
-    fn set_position_around(&self, point: &CGPoint) -> Result<(), accessibility::Error> {
+    fn set_position_around(&self, point: &CGPoint) -> Result<()> {
         let x = point.x - self.mouse_offset.x;
         let y = point.y - self.mouse_offset.y;
 
@@ -270,7 +338,11 @@ fn main() {
                             .contains(awesome_normal_mode_drag_window_flags())
                             && s.mode == Mode::Normal
                         {
-                            s.window_state = WindowState::at_mouse_location();
+                            let ws = WindowState::at_mouse_location().unwrap_or_else(|e| {
+                                eprintln!("While getting window at mouse location: {}", e);
+                                None
+                            });
+                            s.window_state = ws;
                             // if let Some(window_state) = s.window_state.as_ref() {
                             //     window_state.window.activate().unwrap()
                             // }
@@ -286,89 +358,23 @@ fn main() {
                         let mut s = state.borrow_mut();
                         match (&s.mode, keycode) {
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_FULL_KEY) => {
-                                let window = WindowWrapper::active();
-                                if let Ok(window) = window.as_ref() {
-                                    let display = window.display().unwrap();
-                                    window.set_frame(display.bounds()).unwrap();
-                                }
+                                s.set_active_window_full().unwrap_or_else(|e| {
+                                    eprintln!("While setting window full: {}", e)
+                                });
                                 CGEventTapCallbackResult::Drop
                             }
 
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY) => {
-                                let window = WindowWrapper::active();
-                                if let Ok(window) = window.as_ref() {
-                                    let d = window.display().unwrap().bounds();
-                                    let w = window.frame().unwrap();
-                                    if d.origin.x > 0.
-                                        && w.origin.x == d.origin.x
-                                        && w.size.width == d.size.width / 2.
-                                    {
-                                        let pos = CGPoint::new(d.origin.x - 1.0, d.origin.y);
-                                        let (displays, _) =
-                                            CGDisplay::displays_with_point(pos, 1).unwrap();
-                                        if let Some(display_id) = displays.first() {
-                                            let d = CGDisplay::new(*display_id).bounds();
-                                            window
-                                                .set_frame(CGRect::new(
-                                                    &CGPoint::new(
-                                                        d.origin.x + d.size.width / 2.,
-                                                        d.origin.y,
-                                                    ),
-                                                    &CGSize::new(d.size.width / 2., d.size.height),
-                                                ))
-                                                .unwrap();
-                                        }
-                                    } else {
-                                        window
-                                            .set_frame(CGRect::new(
-                                                &d.origin,
-                                                &CGSize::new(d.size.width / 2., d.size.height),
-                                            ))
-                                            .unwrap();
-                                    }
-                                } else {
-                                    println!("No active window")
-                                }
+                                s.set_active_window_left().unwrap_or_else(|e| {
+                                    eprintln!("While setting window left: {}", e)
+                                });
                                 CGEventTapCallbackResult::Drop
                             }
 
                             (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY) => {
-                                let window = WindowWrapper::active();
-                                if let Ok(window) = window.as_ref() {
-                                    let d = window.display().unwrap().bounds();
-                                    let w = window.frame().unwrap();
-                                    if w.origin.x == d.origin.x + d.size.width / 2.
-                                        && w.size.width == d.size.width / 2.
-                                    {
-                                        let pos = CGPoint::new(
-                                            d.origin.x + d.size.width + 1.0,
-                                            d.origin.y,
-                                        );
-                                        let (displays, _) =
-                                            CGDisplay::displays_with_point(pos, 1).unwrap();
-                                        if let Some(display_id) = displays.first() {
-                                            let d = CGDisplay::new(*display_id).bounds();
-                                            window
-                                                .set_frame(CGRect::new(
-                                                    &d.origin,
-                                                    &CGSize::new(d.size.width / 2., d.size.height),
-                                                ))
-                                                .unwrap();
-                                        }
-                                    } else {
-                                        window
-                                            .set_frame(CGRect::new(
-                                                &CGPoint::new(
-                                                    d.origin.x + d.size.width / 2.,
-                                                    d.origin.y,
-                                                ),
-                                                &CGSize::new(d.size.width / 2., d.size.height),
-                                            ))
-                                            .unwrap();
-                                    }
-                                } else {
-                                    println!("No active window")
-                                }
+                                s.set_active_window_right().unwrap_or_else(|e| {
+                                    eprintln!("While setting window right: {}", e)
+                                });
                                 CGEventTapCallbackResult::Drop
                             }
 
