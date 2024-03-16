@@ -1,28 +1,27 @@
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::ffi::c_void;
-use std::ops::Deref;
 
 use accessibility::{AXUIElement, AXUIElementAttributes};
-use anyhow::{anyhow, Result};
-use awesome_rs::{CGErrorWrapper, Window};
-use core_foundation::array::CFArray;
-use core_foundation::base::{FromVoid, ItemRef, TCFType, ToVoid};
-use core_foundation::number::CFNumber;
-use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
-use core_foundation::string::CFString;
-use core_graphics::display::{
-    kCGWindowListExcludeDesktopElements, kCGWindowListOptionOnScreenOnly, CFDictionary, CGDisplay,
-    CGRect, CGSize,
+use awesome_rs::{DragWindow, WindowManager};
+use core_foundation::{
+    array::CFArray,
+    base::{FromVoid, ItemRef, TCFType, ToVoid},
+    number::CFNumber,
+    runloop::{kCFRunLoopCommonModes, CFRunLoop},
+    string::CFString,
 };
-use core_graphics::event::{
-    CGEvent, CGEventFlags, CGEventTap, CGEventTapCallbackResult, CGEventTapLocation,
-    CGEventTapOptions, CGEventTapPlacement, CGEventType, EventField,
+use core_graphics::{
+    display::{
+        kCGWindowListExcludeDesktopElements, kCGWindowListOptionOnScreenOnly, CFDictionary,
+        CGDisplay,
+    },
+    event::{
+        CGEventFlags, CGEventTap, CGEventTapCallbackResult, CGEventTapLocation, CGEventTapOptions,
+        CGEventTapPlacement, CGEventType, EventField,
+    },
+    window::{kCGWindowLayer, kCGWindowOwnerPID},
 };
-
-use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
-use core_graphics::geometry::CGPoint;
-use core_graphics::window::{kCGWindowLayer, kCGWindowOwnerPID};
 
 // <CTL> + <ALT>
 fn awesome_normal_mode_flags() -> CGEventFlags {
@@ -39,240 +38,6 @@ const AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY: i64 = 37; // l
 const AWESOME_NORMAL_MODE_WINDOW_FULL_KEY: i64 = 36; // <ENTER>
 const AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY: i64 = 38; // j
 const AWESOME_NORMAL_MODE_PREV_WINDOW_KEY: i64 = 40; // k
-
-#[derive(Debug)]
-struct WindowWrapper<T>(T);
-
-#[derive(Debug)]
-struct WindowState {
-    window: WindowWrapper<AXUIElement>,
-    mouse_offset: CGPoint,
-}
-
-#[derive(Debug, PartialEq)]
-enum Mode {
-    Normal,
-    Insert,
-}
-
-#[derive(Debug)]
-struct State {
-    window_state: Option<WindowState>,
-    mode: Mode,
-    active_window: usize,
-    app_windows: Vec<CFArray<AXUIElement>>,
-    window_idxs: Vec<(usize, isize)>,
-}
-
-impl State {
-    fn new(app_windows: Vec<CFArray<AXUIElement>>) -> Self {
-        let window_idxs = app_windows
-            .iter()
-            .enumerate()
-            .flat_map(|(i, arr)| (0..(arr.len())).into_iter().map(move |j| (i, j)))
-            .collect();
-        State {
-            window_state: None,
-            mode: Mode::Insert,
-            active_window: 0,
-            app_windows,
-            window_idxs,
-        }
-    }
-
-    fn get_active_window(&self) -> Result<WindowWrapper<ItemRef<'_, AXUIElement>>> {
-        let (i, j) = self
-            .window_idxs
-            .get(self.active_window)
-            .ok_or(accessibility::Error::NotFound)?;
-        let app_ws = self
-            .app_windows
-            .get(*i)
-            .ok_or(accessibility::Error::NotFound)?;
-        let w = app_ws.get(*j).ok_or(accessibility::Error::NotFound)?;
-        Ok(WindowWrapper(w))
-    }
-
-    fn activate_active_window(&self) -> Result<()> {
-        let w = self.get_active_window()?;
-        w.activate()
-    }
-
-    fn incr_active_window(&mut self) {
-        if self.active_window >= self.window_idxs.len() - 1 {
-            self.active_window = 0;
-        } else {
-            self.active_window += 1;
-        }
-    }
-
-    fn decr_active_window(&mut self) {
-        if self.active_window == 0 {
-            self.active_window = self.window_idxs.len() - 1;
-        } else {
-            self.active_window -= 1;
-        }
-    }
-
-    fn next_window(&mut self) -> Result<()> {
-        self.incr_active_window();
-        self.activate_active_window()
-    }
-
-    fn prev_window(&mut self) -> Result<()> {
-        self.decr_active_window();
-        self.activate_active_window()
-    }
-
-    fn set_active_window_full(&self) -> Result<()> {
-        let window = self.get_active_window()?;
-        let display = window.display()?;
-        window.set_frame(display.bounds())?;
-        Ok(())
-    }
-
-    fn set_active_window_left(&self) -> Result<()> {
-        let window = self.get_active_window()?;
-        let d = window.display()?.bounds();
-        let w = window.frame()?;
-        if d.origin.x > 0. && w.origin.x == d.origin.x && w.size.width == d.size.width / 2. {
-            // Already at left: move to previous display.
-            let pos = CGPoint::new(d.origin.x - 1.0, d.origin.y);
-            let (displays, _) =
-                CGDisplay::displays_with_point(pos, 1).map_err(|e| CGErrorWrapper(e))?;
-
-            if let Some(display_id) = displays.first() {
-                let d = CGDisplay::new(*display_id).bounds();
-                window.set_frame(CGRect::new(
-                    &CGPoint::new(d.origin.x + d.size.width / 2., d.origin.y),
-                    &CGSize::new(d.size.width / 2., d.size.height),
-                ))
-            } else {
-                Ok(())
-            }
-        } else {
-            window.set_frame(CGRect::new(
-                &d.origin,
-                &CGSize::new(d.size.width / 2., d.size.height),
-            ))
-        }
-    }
-
-    fn set_active_window_right(&self) -> Result<()> {
-        let window = self.get_active_window()?;
-        let d = window.display()?.bounds();
-        let w = window.frame()?;
-        if w.origin.x == d.origin.x + d.size.width / 2. && w.size.width == d.size.width / 2. {
-            let pos = CGPoint::new(d.origin.x + d.size.width + 1.0, d.origin.y);
-            let (displays, _) = CGDisplay::displays_with_point(pos, 1).map_err(CGErrorWrapper)?;
-            if let Some(display_id) = displays.first() {
-                let d = CGDisplay::new(*display_id).bounds();
-                window.set_frame(CGRect::new(
-                    &d.origin,
-                    &CGSize::new(d.size.width / 2., d.size.height),
-                ))
-            } else {
-                Ok(())
-            }
-        } else {
-            window.set_frame(CGRect::new(
-                &CGPoint::new(d.origin.x + d.size.width / 2., d.origin.y),
-                &CGSize::new(d.size.width / 2., d.size.height),
-            ))
-        }
-    }
-}
-
-fn get_mouse_location() -> Result<CGPoint> {
-    let event_source = CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
-        .map_err(|()| anyhow!("Failed to create CGEventSource"))?;
-    let event = CGEvent::new(event_source).map_err(|()| anyhow!("Failed to create GCEvent"))?;
-    Ok(event.location())
-}
-
-impl WindowWrapper<AXUIElement> {
-    fn from_ui_element(element: AXUIElement) -> Result<Self> {
-        let element_is_window = match element.role() {
-            Ok(role) => role == CFString::from_static_string(accessibility_sys::kAXWindowRole),
-            _ => false,
-        };
-
-        let window = if element_is_window {
-            Ok(element)
-        } else {
-            element.window()
-        }?;
-
-        Ok(Self(window))
-    }
-
-    fn at_point(point: &CGPoint) -> Result<Option<Self>> {
-        let result = AXUIElement::system_wide().element_at_position(point.x as f32, point.y as f32);
-        let result = match result {
-            Ok(el) => Ok(Some(el)),
-            Err(accessibility::Error::Ax(accessibility_sys::kAXErrorNoValue)) => Ok(None),
-            Err(e) => Err(e),
-        };
-        let element = result?;
-
-        match element {
-            None => Ok(None),
-            Some(element) => {
-                let w = Self::from_ui_element(element)?;
-                Ok(Some(w))
-            }
-        }
-    }
-
-    fn _active() -> Result<Self> {
-        let element = AXUIElement::system_wide().focused_uielement()?;
-        Self::from_ui_element(element)
-    }
-}
-
-impl Window for WindowWrapper<AXUIElement> {
-    fn element(&self) -> &AXUIElement {
-        &self.0
-    }
-}
-
-impl<'a> Window for WindowWrapper<ItemRef<'a, AXUIElement>> {
-    fn element(&self) -> &AXUIElement {
-        self.0.deref()
-    }
-}
-
-impl WindowState {
-    fn new(window: WindowWrapper<AXUIElement>, mouse_offset: CGPoint) -> Self {
-        Self {
-            window,
-            mouse_offset,
-        }
-    }
-
-    fn at_mouse_location() -> Result<Option<Self>> {
-        let mouse_location = get_mouse_location()?;
-        let window = WindowWrapper::at_point(&mouse_location)?;
-        match window {
-            None => Ok(None),
-            Some(window) => {
-                let window_pos: CGPoint = window.position()?;
-                let mouse_offset = CGPoint::new(
-                    mouse_location.x - window_pos.x,
-                    mouse_location.y - window_pos.y,
-                );
-                Ok(Some(Self::new(window, mouse_offset)))
-            }
-        }
-    }
-
-    fn set_position_around(&self, point: &CGPoint) -> Result<()> {
-        let x = point.x - self.mouse_offset.x;
-        let y = point.y - self.mouse_offset.y;
-
-        self.window.set_position(CGPoint::new(x, y))
-    }
-}
 
 fn main() {
     let window_list: CFArray<*const c_void> = CGDisplay::window_list_info(
@@ -306,7 +71,7 @@ fn main() {
     let app_windows: Vec<_> = apps.iter().map(|a| a.windows().unwrap()).collect();
     println!("app windows: {:?}", app_windows);
 
-    let state: RefCell<State> = RefCell::new(State::new(app_windows));
+    let state: RefCell<WindowManager> = RefCell::new(WindowManager::new(app_windows));
 
     let event_tap = {
         use CGEventType::*;
@@ -318,8 +83,8 @@ fn main() {
             |_, event_type, event| {
                 match event_type {
                     MouseMoved => {
-                        if let Some(state) = state.borrow().window_state.as_ref() {
-                            state.set_position_around(&event.location()).unwrap()
+                        if let Some(dw) = state.borrow().drag_window() {
+                            dw.set_position_around(&event.location()).unwrap()
                         }
                         CGEventTapCallbackResult::Keep
                     }
@@ -328,26 +93,22 @@ fn main() {
                         // println!("FlagsChanged {:?}", event.get_flags());
                         let mut s = state.borrow_mut();
                         if event.get_flags().contains(awesome_normal_mode_flags()) {
-                            s.mode = match s.mode {
-                                Mode::Normal => Mode::Insert,
-                                Mode::Insert => Mode::Normal,
-                            };
-                            println!("Entered {:?} mode", s.mode);
+                            s.toggle_mode();
                         } else if event
                             .get_flags()
                             .contains(awesome_normal_mode_drag_window_flags())
-                            && s.mode == Mode::Normal
+                            && s.is_normal_mode()
                         {
-                            let ws = WindowState::at_mouse_location().unwrap_or_else(|e| {
+                            let ws = DragWindow::at_mouse_location().unwrap_or_else(|e| {
                                 eprintln!("While getting window at mouse location: {}", e);
                                 None
                             });
-                            s.window_state = ws;
+                            s.set_drag_window(ws);
                             // if let Some(window_state) = s.window_state.as_ref() {
                             //     window_state.window.activate().unwrap()
                             // }
                         } else {
-                            s.window_state = None;
+                            s.set_drag_window(None);
                         }
                         CGEventTapCallbackResult::Keep
                     }
@@ -356,44 +117,45 @@ fn main() {
                             event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE);
                         println!("KeyDown {}", keycode);
                         let mut s = state.borrow_mut();
-                        match (&s.mode, keycode) {
-                            (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_FULL_KEY) => {
+                        match keycode {
+                            AWESOME_NORMAL_MODE_WINDOW_FULL_KEY if s.is_normal_mode() => {
                                 s.set_active_window_full().unwrap_or_else(|e| {
                                     eprintln!("While setting window full: {}", e)
                                 });
                                 CGEventTapCallbackResult::Drop
                             }
 
-                            (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY) => {
+                            AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY if s.is_normal_mode() => {
                                 s.set_active_window_left().unwrap_or_else(|e| {
                                     eprintln!("While setting window left: {}", e)
                                 });
                                 CGEventTapCallbackResult::Drop
                             }
 
-                            (Mode::Normal, AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY) => {
+                            AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY if s.is_normal_mode() => {
                                 s.set_active_window_right().unwrap_or_else(|e| {
                                     eprintln!("While setting window right: {}", e)
                                 });
                                 CGEventTapCallbackResult::Drop
                             }
 
-                            (Mode::Normal, AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY) => {
-                                s.next_window().unwrap();
+                            AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY if s.is_normal_mode() => {
+                                s.next_window().unwrap_or_else(|e| {
+                                    eprintln!("While switching to next window: {}", e)
+                                });
                                 CGEventTapCallbackResult::Drop
                             }
 
-                            (Mode::Normal, AWESOME_NORMAL_MODE_PREV_WINDOW_KEY) => {
-                                s.prev_window().unwrap();
+                            AWESOME_NORMAL_MODE_PREV_WINDOW_KEY if s.is_normal_mode() => {
+                                s.prev_window().unwrap_or_else(|e| {
+                                    eprintln!("While switching to prev window: {}", e)
+                                });
                                 CGEventTapCallbackResult::Drop
                             }
 
                             _ => {
                                 // Enter Insert mode on any other key
-                                if s.mode != Mode::Insert {
-                                    s.mode = Mode::Insert;
-                                    println!("Entered {:?} mode", s.mode);
-                                }
+                                s.exit_normal_mode();
                                 CGEventTapCallbackResult::Keep
                             }
                         }
