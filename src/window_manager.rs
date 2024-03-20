@@ -1,7 +1,7 @@
 use std::{collections::HashSet, ffi::c_void};
 
 use accessibility::{AXUIElement, AXUIElementAttributes};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use core_foundation::{
     array::CFArray,
     base::{FromVoid, ItemRef, TCFType, ToVoid},
@@ -27,12 +27,12 @@ pub enum Mode {
     Insert,
 }
 
-fn get_all_windows() -> Vec<AXUIElement> {
+fn get_all_windows() -> Result<Vec<AXUIElement>> {
     let window_list: CFArray<*const c_void> = CGDisplay::window_list_info(
         kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
         None,
     )
-    .unwrap();
+    .ok_or(anyhow!("no window_list_info"))?;
 
     let window_pids: HashSet<i64> = window_list
         .iter()
@@ -59,31 +59,37 @@ fn get_all_windows() -> Vec<AXUIElement> {
 
     let mut res = vec![];
     for app in apps {
-        for w in app.windows().unwrap().iter() {
+        for w in app.windows()?.iter() {
             res.push(w.clone());
         }
     }
 
-    res
+    Ok(res)
 }
 
 #[derive(Debug)]
 pub struct WindowManager {
     drag_window: Option<DragWindow>,
     mode: Mode,
-    active_window_idx: usize,
+    active_window_idx: Option<usize>,
     windows: Vec<AXUIElement>,
 }
 
 impl WindowManager {
     pub fn new() -> Self {
-        let windows = get_all_windows();
         WindowManager {
             drag_window: None,
             mode: Mode::Insert,
-            active_window_idx: 0,
-            windows,
+            active_window_idx: None,
+            windows: vec![],
         }
+    }
+
+    pub fn init(&mut self) -> Result<()> {
+        let windows = get_all_windows()?;
+        self.windows = windows;
+        self.active_window_idx = Some(0);
+        Ok(())
     }
 
     pub fn drag_window(&self) -> Option<&DragWindow> {
@@ -117,32 +123,44 @@ impl WindowManager {
         }
     }
 
-    fn get_active_window(&self) -> Result<WindowWrapper<&AXUIElement>> {
-        let window = self
-            .windows
-            .get(self.active_window_idx)
-            .ok_or(accessibility::Error::NotFound)?;
-        Ok(WindowWrapper(window))
+    fn get_active_window(&self) -> Result<Option<WindowWrapper<&AXUIElement>>> {
+        match self.active_window_idx {
+            None => Ok(None),
+            Some(idx) => {
+                let window = self
+                    .windows
+                    .get(idx)
+                    .ok_or(accessibility::Error::NotFound)?;
+                Ok(Some(WindowWrapper(window)))
+            }
+        }
     }
 
     fn activate_active_window(&self) -> Result<()> {
-        let w = self.get_active_window()?;
-        w.activate()
+        if let Some(w) = self.get_active_window()? {
+            w.activate()
+        } else {
+            Ok(())
+        }
     }
 
     fn incr_active_window(&mut self) {
-        if self.active_window_idx >= self.windows.len() - 1 {
-            self.active_window_idx = 0;
-        } else {
-            self.active_window_idx += 1;
+        for idx in self.active_window_idx.iter_mut() {
+            if *idx >= self.windows.len() - 1 {
+                *idx = 0
+            } else {
+                *idx += 1;
+            }
         }
     }
 
     fn decr_active_window(&mut self) {
-        if self.active_window_idx == 0 {
-            self.active_window_idx = self.windows.len() - 1;
-        } else {
-            self.active_window_idx -= 1;
+        for idx in self.active_window_idx.iter_mut() {
+            if *idx == 0 {
+                *idx = self.windows.len() - 1;
+            } else {
+                *idx -= 1;
+            }
         }
     }
 
@@ -157,60 +175,62 @@ impl WindowManager {
     }
 
     pub fn set_active_window_full(&self) -> Result<()> {
-        let window = self.get_active_window()?;
-        let display = window.display()?;
-        window.set_frame(display.bounds())?;
+        if let Some(window) = self.get_active_window()? {
+            let display = window.display()?;
+            window.set_frame(display.bounds())?;
+        }
         Ok(())
     }
 
     pub fn set_active_window_left(&self) -> Result<()> {
-        let window = self.get_active_window()?;
-        let d = window.display()?.bounds();
-        let w = window.frame()?;
-        if d.origin.x > 0. && w.origin.x == d.origin.x && w.size.width == d.size.width / 2. {
-            // Already at left: move to previous display.
-            let pos = CGPoint::new(d.origin.x - 1.0, d.origin.y);
-            let (displays, _) =
-                CGDisplay::displays_with_point(pos, 1).map_err(|e| CGErrorWrapper(e))?;
+        if let Some(window) = self.get_active_window()? {
+            let d = window.display()?.bounds();
+            let w = window.frame()?;
+            if d.origin.x > 0. && w.origin.x == d.origin.x && w.size.width == d.size.width / 2. {
+                // Already at left: move to previous display.
+                let pos = CGPoint::new(d.origin.x - 1.0, d.origin.y);
+                let (displays, _) =
+                    CGDisplay::displays_with_point(pos, 1).map_err(|e| CGErrorWrapper(e))?;
 
-            if let Some(display_id) = displays.first() {
-                let d = CGDisplay::new(*display_id).bounds();
-                window.set_frame(CGRect::new(
-                    &CGPoint::new(d.origin.x + d.size.width / 2., d.origin.y),
-                    &CGSize::new(d.size.width / 2., d.size.height),
-                ))
+                if let Some(display_id) = displays.first() {
+                    let d = CGDisplay::new(*display_id).bounds();
+                    window.set_frame(CGRect::new(
+                        &CGPoint::new(d.origin.x + d.size.width / 2., d.origin.y),
+                        &CGSize::new(d.size.width / 2., d.size.height),
+                    ))?;
+                }
             } else {
-                Ok(())
-            }
-        } else {
-            window.set_frame(CGRect::new(
-                &d.origin,
-                &CGSize::new(d.size.width / 2., d.size.height),
-            ))
-        }
-    }
-
-    pub fn set_active_window_right(&self) -> Result<()> {
-        let window = self.get_active_window()?;
-        let d = window.display()?.bounds();
-        let w = window.frame()?;
-        if w.origin.x == d.origin.x + d.size.width / 2. && w.size.width == d.size.width / 2. {
-            let pos = CGPoint::new(d.origin.x + d.size.width + 1.0, d.origin.y);
-            let (displays, _) = CGDisplay::displays_with_point(pos, 1).map_err(CGErrorWrapper)?;
-            if let Some(display_id) = displays.first() {
-                let d = CGDisplay::new(*display_id).bounds();
                 window.set_frame(CGRect::new(
                     &d.origin,
                     &CGSize::new(d.size.width / 2., d.size.height),
-                ))
-            } else {
-                Ok(())
+                ))?;
             }
-        } else {
-            window.set_frame(CGRect::new(
-                &CGPoint::new(d.origin.x + d.size.width / 2., d.origin.y),
-                &CGSize::new(d.size.width / 2., d.size.height),
-            ))
         }
+        Ok(())
+    }
+
+    pub fn set_active_window_right(&self) -> Result<()> {
+        if let Some(window) = self.get_active_window()? {
+            let d = window.display()?.bounds();
+            let w = window.frame()?;
+            if w.origin.x == d.origin.x + d.size.width / 2. && w.size.width == d.size.width / 2. {
+                let pos = CGPoint::new(d.origin.x + d.size.width + 1.0, d.origin.y);
+                let (displays, _) =
+                    CGDisplay::displays_with_point(pos, 1).map_err(CGErrorWrapper)?;
+                if let Some(display_id) = displays.first() {
+                    let d = CGDisplay::new(*display_id).bounds();
+                    window.set_frame(CGRect::new(
+                        &d.origin,
+                        &CGSize::new(d.size.width / 2., d.size.height),
+                    ))?;
+                }
+            } else {
+                window.set_frame(CGRect::new(
+                    &CGPoint::new(d.origin.x + d.size.width / 2., d.origin.y),
+                    &CGSize::new(d.size.width / 2., d.size.height),
+                ))?;
+            }
+        }
+        Ok(())
     }
 }

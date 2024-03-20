@@ -26,7 +26,9 @@ const AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY: i64 = 38; // j
 const AWESOME_NORMAL_MODE_PREV_WINDOW_KEY: i64 = 40; // k
 
 fn main() {
-    let state: RefCell<WindowManager> = RefCell::new(WindowManager::new());
+    let mut wm = WindowManager::new();
+    wm.init().expect("Could not get initial window list");
+    let state: RefCell<WindowManager> = RefCell::new(wm);
 
     let event_tap = {
         use CGEventType::*;
