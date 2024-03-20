@@ -180,6 +180,12 @@ impl Window for WindowWrapper<AXUIElement> {
     }
 }
 
+impl Window for WindowWrapper<&AXUIElement> {
+    fn element(&self) -> &AXUIElement {
+        &self.0
+    }
+}
+
 impl<'a> Window for WindowWrapper<ItemRef<'a, AXUIElement>> {
     fn element(&self) -> &AXUIElement {
         self.0.deref()

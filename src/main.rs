@@ -1,26 +1,12 @@
 use std::cell::RefCell;
-use std::collections::HashSet;
 use std::ffi::c_void;
 
-use accessibility::{AXUIElement, AXUIElementAttributes};
+use accessibility::AXUIElement;
 use awesome_rs::{DragWindow, WindowManager};
-use core_foundation::{
-    array::CFArray,
-    base::{FromVoid, ItemRef, TCFType, ToVoid},
-    number::CFNumber,
-    runloop::{kCFRunLoopCommonModes, CFRunLoop},
-    string::CFString,
-};
-use core_graphics::{
-    display::{
-        kCGWindowListExcludeDesktopElements, kCGWindowListOptionOnScreenOnly, CFDictionary,
-        CGDisplay,
-    },
-    event::{
-        CGEvent, CGEventFlags, CGEventTap, CGEventTapCallbackResult, CGEventTapLocation,
-        CGEventTapOptions, CGEventTapPlacement, CGEventType, EventField,
-    },
-    window::{kCGWindowLayer, kCGWindowOwnerPID},
+use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
+use core_graphics::event::{
+    CGEvent, CGEventFlags, CGEventTap, CGEventTapCallbackResult, CGEventTapLocation,
+    CGEventTapOptions, CGEventTapPlacement, CGEventType, EventField,
 };
 
 // <CTL> + <ALT>
@@ -40,38 +26,7 @@ const AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY: i64 = 38; // j
 const AWESOME_NORMAL_MODE_PREV_WINDOW_KEY: i64 = 40; // k
 
 fn main() {
-    let window_list: CFArray<*const c_void> = CGDisplay::window_list_info(
-        kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
-        None,
-    )
-    .unwrap();
-    let window_pids: HashSet<i64> = window_list
-        .iter()
-        .map(|w| unsafe { CFDictionary::from_void(*w) })
-        .filter(|d: &ItemRef<CFDictionary>| {
-            // Keep only windows at layer 0
-            let l: CFString = unsafe { CFString::wrap_under_create_rule(kCGWindowLayer) };
-            let layer_void: ItemRef<'_, *const c_void> = d.get(l.to_void());
-            let layer = unsafe { CFNumber::from_void(*layer_void) };
-            layer.to_i32() == Some(0)
-        })
-        .filter_map(|d| {
-            let k: CFString = unsafe { CFString::wrap_under_create_rule(kCGWindowOwnerPID) };
-            let pid = d.get(k.to_void());
-            let pid = unsafe { CFNumber::from_void(*pid) };
-            pid.to_i64()
-        })
-        .collect();
-    println!("window pids: {:?}", window_pids);
-    let apps = window_pids
-        .iter()
-        .map(|pid| AXUIElement::application(*pid as i32))
-        .collect::<Vec<_>>();
-    println!("apps: {:?}", apps);
-    let app_windows: Vec<_> = apps.iter().map(|a| a.windows().unwrap()).collect();
-    println!("app windows: {:?}", app_windows);
-
-    let state: RefCell<WindowManager> = RefCell::new(WindowManager::new(app_windows));
+    let state: RefCell<WindowManager> = RefCell::new(WindowManager::new());
 
     let event_tap = {
         use CGEventType::*;

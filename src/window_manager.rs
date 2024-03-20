@@ -1,9 +1,18 @@
-use accessibility::AXUIElement;
+use std::{collections::HashSet, ffi::c_void};
+
+use accessibility::{AXUIElement, AXUIElementAttributes};
 use anyhow::Result;
-use core_foundation::{array::CFArray, base::ItemRef};
+use core_foundation::{
+    array::CFArray,
+    base::{FromVoid, ItemRef, TCFType, ToVoid},
+    dictionary::CFDictionary,
+    number::CFNumber,
+    string::CFString,
+};
 use core_graphics::{
-    display::CGDisplay,
+    display::{kCGWindowListExcludeDesktopElements, kCGWindowListOptionOnScreenOnly, CGDisplay},
     geometry::{CGPoint, CGRect, CGSize},
+    window::{kCGWindowLayer, kCGWindowOwnerPID},
 };
 
 use crate::{
@@ -18,28 +27,62 @@ pub enum Mode {
     Insert,
 }
 
+fn get_all_windows() -> Vec<AXUIElement> {
+    let window_list: CFArray<*const c_void> = CGDisplay::window_list_info(
+        kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
+        None,
+    )
+    .unwrap();
+
+    let window_pids: HashSet<i64> = window_list
+        .iter()
+        .map(|w| unsafe { CFDictionary::from_void(*w) })
+        .filter(|d: &ItemRef<CFDictionary>| {
+            // Keep only windows at layer 0
+            let l: CFString = unsafe { CFString::wrap_under_create_rule(kCGWindowLayer) };
+            let layer_void: ItemRef<'_, *const c_void> = d.get(l.to_void());
+            let layer = unsafe { CFNumber::from_void(*layer_void) };
+            layer.to_i32() == Some(0)
+        })
+        .filter_map(|d| {
+            let k: CFString = unsafe { CFString::wrap_under_create_rule(kCGWindowOwnerPID) };
+            let pid = d.get(k.to_void());
+            let pid = unsafe { CFNumber::from_void(*pid) };
+            pid.to_i64()
+        })
+        .collect();
+
+    let apps = window_pids
+        .iter()
+        .map(|pid| AXUIElement::application(*pid as i32))
+        .collect::<Vec<_>>();
+
+    let mut res = vec![];
+    for app in apps {
+        for w in app.windows().unwrap().iter() {
+            res.push(w.clone());
+        }
+    }
+
+    res
+}
+
 #[derive(Debug)]
 pub struct WindowManager {
     drag_window: Option<DragWindow>,
     mode: Mode,
-    active_window: usize,
-    app_windows: Vec<CFArray<AXUIElement>>,
-    window_idxs: Vec<(usize, isize)>,
+    active_window_idx: usize,
+    windows: Vec<AXUIElement>,
 }
 
 impl WindowManager {
-    pub fn new(app_windows: Vec<CFArray<AXUIElement>>) -> Self {
-        let window_idxs = app_windows
-            .iter()
-            .enumerate()
-            .flat_map(|(i, arr)| (0..(arr.len())).into_iter().map(move |j| (i, j)))
-            .collect();
+    pub fn new() -> Self {
+        let windows = get_all_windows();
         WindowManager {
             drag_window: None,
             mode: Mode::Insert,
-            active_window: 0,
-            app_windows,
-            window_idxs,
+            active_window_idx: 0,
+            windows,
         }
     }
 
@@ -74,17 +117,12 @@ impl WindowManager {
         }
     }
 
-    fn get_active_window(&self) -> Result<WindowWrapper<ItemRef<'_, AXUIElement>>> {
-        let (i, j) = self
-            .window_idxs
-            .get(self.active_window)
+    fn get_active_window(&self) -> Result<WindowWrapper<&AXUIElement>> {
+        let window = self
+            .windows
+            .get(self.active_window_idx)
             .ok_or(accessibility::Error::NotFound)?;
-        let app_ws = self
-            .app_windows
-            .get(*i)
-            .ok_or(accessibility::Error::NotFound)?;
-        let w = app_ws.get(*j).ok_or(accessibility::Error::NotFound)?;
-        Ok(WindowWrapper(w))
+        Ok(WindowWrapper(window))
     }
 
     fn activate_active_window(&self) -> Result<()> {
@@ -93,18 +131,18 @@ impl WindowManager {
     }
 
     fn incr_active_window(&mut self) {
-        if self.active_window >= self.window_idxs.len() - 1 {
-            self.active_window = 0;
+        if self.active_window_idx >= self.windows.len() - 1 {
+            self.active_window_idx = 0;
         } else {
-            self.active_window += 1;
+            self.active_window_idx += 1;
         }
     }
 
     fn decr_active_window(&mut self) {
-        if self.active_window == 0 {
-            self.active_window = self.window_idxs.len() - 1;
+        if self.active_window_idx == 0 {
+            self.active_window_idx = self.windows.len() - 1;
         } else {
-            self.active_window -= 1;
+            self.active_window_idx -= 1;
         }
     }
 
