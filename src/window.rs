@@ -71,6 +71,12 @@ pub trait Window {
         Ok(())
     }
 
+    fn frontmost_and_main(&self) -> Result<bool> {
+        let app_is_frontmost = self.application()?.frontmost()?.into();
+        let window_is_main = self.element().main()?.into();
+        Ok(app_is_frontmost && window_is_main)
+    }
+
     fn frame(&self) -> Result<CGRect> {
         let position = self.position()?;
         let size = self.size()?;

@@ -72,7 +72,7 @@ pub struct WindowManager {
     drag_window: Option<DragWindow>,
     mode: Mode,
     active_window_idx: Option<usize>,
-    windows: Vec<AXUIElement>,
+    windows: Vec<WindowWrapper<AXUIElement>>,
 }
 
 impl WindowManager {
@@ -87,8 +87,15 @@ impl WindowManager {
 
     pub fn init(&mut self) -> Result<()> {
         let windows = get_all_windows()?;
+        let windows: Vec<_> = windows.into_iter().map(|w| WindowWrapper(w)).collect();
         self.windows = windows;
-        self.active_window_idx = Some(0);
+        self.active_window_idx = self
+            .windows
+            .iter()
+            .position(|w| w.frontmost_and_main().unwrap_or(false));
+        if self.active_window_idx.is_none() {
+            eprintln!("No active window!");
+        }
         Ok(())
     }
 
@@ -123,7 +130,7 @@ impl WindowManager {
         }
     }
 
-    fn get_active_window(&self) -> Result<Option<WindowWrapper<&AXUIElement>>> {
+    fn get_active_window(&self) -> Result<Option<&WindowWrapper<AXUIElement>>> {
         match self.active_window_idx {
             None => Ok(None),
             Some(idx) => {
@@ -131,7 +138,7 @@ impl WindowManager {
                     .windows
                     .get(idx)
                     .ok_or(accessibility::Error::NotFound)?;
-                Ok(Some(WindowWrapper(window)))
+                Ok(Some(window))
             }
         }
     }
