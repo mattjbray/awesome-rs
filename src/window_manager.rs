@@ -1,6 +1,7 @@
-use std::{collections::HashSet, ffi::c_void, time::Duration};
+use std::{ffi::c_void, time::Duration};
 
 use accessibility::{AXUIElement, AXUIElementAttributes};
+use accessibility_sys::kAXWindowRole;
 use anyhow::{anyhow, Result};
 use core_foundation::{
     array::CFArray,
@@ -34,7 +35,7 @@ fn get_all_windows() -> Result<Vec<AXUIElement>> {
     )
     .ok_or(anyhow!("no window_list_info"))?;
 
-    let window_pids: HashSet<i64> = window_list
+    let window_pids = window_list
         .iter()
         .map(|w| unsafe { CFDictionary::from_void(*w) })
         .filter(|d: &ItemRef<CFDictionary>| {
@@ -50,10 +51,16 @@ fn get_all_windows() -> Result<Vec<AXUIElement>> {
             let pid = d.get(k.to_void());
             let pid = unsafe { CFNumber::from_void(*pid) };
             pid.to_i64()
-        })
-        .collect();
+        });
 
-    let apps = window_pids
+    let mut window_pids_deduped = vec![];
+    for pid in window_pids {
+        if !window_pids_deduped.contains(&pid) {
+            window_pids_deduped.push(pid);
+        }
+    }
+
+    let apps = window_pids_deduped
         .iter()
         .map(|pid| AXUIElement::application(*pid as i32))
         .collect::<Vec<_>>();
@@ -63,7 +70,9 @@ fn get_all_windows() -> Result<Vec<AXUIElement>> {
         match app.windows() {
             Ok(windows) => {
                 for w in windows.iter() {
-                    res.push(w.clone());
+                    if w.role()? == kAXWindowRole {
+                        res.push(w.clone());
+                    }
                 }
             }
             Err(accessibility::Error::Ax(accessibility_sys::kAXErrorCannotComplete)) => {
@@ -73,6 +82,8 @@ fn get_all_windows() -> Result<Vec<AXUIElement>> {
             Err(e) => return Err(e.into()),
         }
     }
+
+    eprintln!("window list: {:?}", res);
 
     Ok(res)
 }
