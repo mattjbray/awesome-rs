@@ -139,8 +139,10 @@ fn mk_event_tap_callback(
                     _ if s.is_normal_mode() => {
                         // Enter Insert mode on any other key
                         s.exit_normal_mode();
-                        CGEventTapCallbackResult::Keep
+                        CGEventTapCallbackResult::Drop
                     }
+
+                    _ => CGEventTapCallbackResult::Keep,
                 }
             }
             _ => CGEventTapCallbackResult::Keep,
