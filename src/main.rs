@@ -118,9 +118,15 @@ fn mk_event_tap_callback(
                         CGEventTapCallbackResult::Drop
                     }
 
-                    AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY if s.is_normal_mode() => {
-                        s.next_window()
-                            .unwrap_or_else(|e| eprintln!("While switching to next window: {}", e));
+                    AWESOME_NORMAL_MODE_PREV_WINDOW_KEY
+                        if s.is_normal_mode()
+                            && event
+                                .get_flags()
+                                .contains(CGEventFlags::CGEventFlagAlternate) =>
+                    {
+                        s.swap_window_prev();
+                        s.cascade_windows()
+                            .unwrap_or_else(|e| eprintln!("While cascading windows: {}", e));
                         CGEventTapCallbackResult::Drop
                     }
 
@@ -130,13 +136,31 @@ fn mk_event_tap_callback(
                         CGEventTapCallbackResult::Drop
                     }
 
+                    AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY
+                        if s.is_normal_mode()
+                        && event
+                        .get_flags()
+                        .contains(CGEventFlags::CGEventFlagAlternate) =>
+                    {
+                        s.swap_window_next();
+                        s.cascade_windows()
+                            .unwrap_or_else(|e| eprintln!("While cascading windows: {}", e));
+                        CGEventTapCallbackResult::Drop
+                    }
+
+                    AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY if s.is_normal_mode() => {
+                        s.next_window()
+                            .unwrap_or_else(|e| eprintln!("While switching to next window: {}", e));
+                        CGEventTapCallbackResult::Drop
+                    }
+
                     AWESOME_REFRESH_WINDOW_LIST if s.is_normal_mode() => {
                         s.init().expect("Could not get initial window list");
                         CGEventTapCallbackResult::Drop
                     }
 
                     AWESOME_CASCADE_WINDOWS if s.is_normal_mode() => {
-                        s.init().expect("Could not get initial window list");
+                        // s.init().expect("Could not get initial window list");
                         s.cascade_windows()
                             .unwrap_or_else(|e| eprintln!("While cascading windows: {}", e));
                         CGEventTapCallbackResult::Drop

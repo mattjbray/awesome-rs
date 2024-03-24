@@ -173,24 +173,32 @@ impl WindowManager {
         }
     }
 
-    fn incr_active_window(&mut self) {
-        for idx in self.active_window_idx.iter_mut() {
-            if *idx >= self.windows.len() - 1 {
-                *idx = 0
+    fn prev_window_idx(&mut self) -> Option<usize> {
+        self.active_window_idx.map(|idx| {
+            if idx >= self.windows.len() - 1 {
+                0
             } else {
-                *idx += 1;
+                idx + 1
             }
-        }
+        })
+    }
+
+    fn incr_active_window(&mut self) {
+        self.active_window_idx = self.prev_window_idx()
+    }
+
+    fn next_window_idx(&mut self) -> Option<usize> {
+        self.active_window_idx.map(|idx| {
+            if idx == 0 {
+                self.windows.len() - 1
+            } else {
+                idx - 1
+            }
+        })
     }
 
     fn decr_active_window(&mut self) {
-        for idx in self.active_window_idx.iter_mut() {
-            if *idx == 0 {
-                *idx = self.windows.len() - 1;
-            } else {
-                *idx -= 1;
-            }
-        }
+        self.active_window_idx = self.next_window_idx()
     }
 
     pub fn next_window(&mut self) -> Result<()> {
@@ -201,6 +209,26 @@ impl WindowManager {
     pub fn prev_window(&mut self) -> Result<()> {
         self.incr_active_window();
         self.activate_active_window()
+    }
+
+    pub fn swap_window_prev(&mut self) {
+        match (self.active_window_idx, self.prev_window_idx()) {
+            (Some(idx), Some(prev_idx)) => {
+                self.windows.swap(idx, prev_idx);
+                self.active_window_idx = Some(prev_idx);
+            }
+            _ => (),
+        }
+    }
+
+    pub fn swap_window_next(&mut self) {
+        match (self.active_window_idx, self.next_window_idx()) {
+            (Some(idx), Some(next_idx)) => {
+                self.windows.swap(idx, next_idx);
+                self.active_window_idx = Some(next_idx);
+            }
+            _ => (),
+        }
     }
 
     pub fn set_active_window_full(&self) -> Result<()> {
