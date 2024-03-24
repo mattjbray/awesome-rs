@@ -45,6 +45,7 @@ fn get_all_windows() -> Result<Vec<AXUIElement>> {
             layer.to_i32() == Some(0)
         })
         .filter_map(|d| {
+            eprintln!("{:?}", d);
             let k: CFString = unsafe { CFString::wrap_under_create_rule(kCGWindowOwnerPID) };
             let pid = d.get(k.to_void());
             let pid = unsafe { CFNumber::from_void(*pid) };
@@ -59,8 +60,17 @@ fn get_all_windows() -> Result<Vec<AXUIElement>> {
 
     let mut res = vec![];
     for app in apps {
-        for w in app.windows()?.iter() {
-            res.push(w.clone());
+        match app.windows() {
+            Ok(windows) => {
+                for w in windows.iter() {
+                    res.push(w.clone());
+                }
+            }
+            Err(accessibility::Error::Ax(accessibility_sys::kAXErrorCannotComplete)) => {
+                // e.g. kCGWindowOwnerName="Window Server" kCGWindowName=StatusIndicator
+                ()
+            }
+            Err(e) => return Err(e.into()),
         }
     }
 
