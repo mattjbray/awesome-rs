@@ -41,6 +41,16 @@ pub trait Window {
         }
     }
 
+    fn debug_attributes(&self) -> Result<()> {
+        let w = self.element();
+        eprintln!("{:?}", w);
+        for attr in w.attribute_names()?.iter() {
+            let val = w.attribute(&AXAttribute::new(&*attr));
+            eprintln!("{:?}: {:?}", *attr, val);
+        }
+        Ok(())
+    }
+
     fn position(&self) -> Result<CGPoint> {
         let value = self.element().position()?;
         let point = value.get_value()?;

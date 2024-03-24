@@ -28,7 +28,7 @@ pub enum Mode {
     Insert,
 }
 
-fn get_all_windows() -> Result<Vec<AXUIElement>> {
+fn get_all_windows() -> Result<Vec<WindowWrapper<AXUIElement>>> {
     let window_list: CFArray<*const c_void> = CGDisplay::window_list_info(
         kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
         None,
@@ -71,7 +71,9 @@ fn get_all_windows() -> Result<Vec<AXUIElement>> {
             Ok(windows) => {
                 for w in windows.iter() {
                     if w.role()? == kAXWindowRole {
-                        res.push(w.clone());
+                        let w = WindowWrapper(w.clone());
+                        w.debug_attributes()?;
+                        res.push(w);
                     }
                 }
             }
@@ -107,9 +109,7 @@ impl WindowManager {
     }
 
     pub fn init(&mut self) -> Result<()> {
-        let windows = get_all_windows()?;
-        let windows: Vec<_> = windows.into_iter().map(|w| WindowWrapper(w)).collect();
-        self.windows = windows;
+        self.windows = get_all_windows()?;
         self.active_window_idx = self
             .windows
             .iter()
