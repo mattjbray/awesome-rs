@@ -13,6 +13,8 @@ pub enum Action {
     WindowFull,
     WindowLeftHalf,
     WindowRightHalf,
+    WindowMinimize,
+    WindowRestore,
     NextWindow,
     PrevWindow,
     SwapNextWindow,
@@ -29,6 +31,7 @@ const KEYCODE_H: i64 = 4;
 const KEYCODE_J: i64 = 38;
 const KEYCODE_K: i64 = 40;
 const KEYCODE_L: i64 = 37;
+const KEYCODE_M: i64 = 46;
 const KEYCODE_R: i64 = 15;
 const KEYCODE_T: i64 = 17;
 const KEYCODE_ENT: i64 = 36;
@@ -68,6 +71,8 @@ impl Action {
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_H, _) => Some(Action::WindowLeftHalf),
                     (Mode::Normal, FLG_NULL, KEYCODE_L, _) => Some(Action::WindowRightHalf),
+                    (Mode::Normal, FLG_NULL, KEYCODE_M, _) => Some(Action::WindowMinimize),
+                    (Mode::Normal, FLG_SHIFT, KEYCODE_M, _) => Some(Action::WindowRestore),
                     (Mode::Normal, FLG_NULL, KEYCODE_R, _) => Some(Action::RefreshWindowList),
                     (Mode::Normal, FLG_NULL, KEYCODE_T, _) => Some(Action::LayoutTiling),
                     (Mode::Normal, FLG_ALT, KEYCODE_J, _) => Some(Action::SwapNextWindow),

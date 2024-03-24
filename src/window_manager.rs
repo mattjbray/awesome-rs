@@ -25,14 +25,17 @@ use crate::{
     CGErrorWrapper,
 };
 
-fn get_all_windows() -> Result<Vec<WindowWrapper<AXUIElement>>> {
-    let window_list: CFArray<*const c_void> = CGDisplay::window_list_info(
-        kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
-        None,
-    )
-    .ok_or(anyhow!("no window_list_info"))?;
+fn get_window_pids(on_screen_only: bool) -> Result<Vec<i64>>  {
+    let opts = kCGWindowListExcludeDesktopElements;
+    let opts = if on_screen_only {
+        opts | kCGWindowListOptionOnScreenOnly
+    } else {
+        opts
+    };
+    let window_list: CFArray<*const c_void> =
+        CGDisplay::window_list_info(opts, None).ok_or(anyhow!("no window_list_info"))?;
 
-    let window_pids = window_list
+    let iter = window_list
         .iter()
         .map(|w| unsafe { CFDictionary::from_void(*w) })
         .filter(|d: &ItemRef<CFDictionary>| {
@@ -48,10 +51,23 @@ fn get_all_windows() -> Result<Vec<WindowWrapper<AXUIElement>>> {
             let pid = d.get(k.to_void());
             let pid = unsafe { CFNumber::from_void(*pid) };
             pid.to_i64()
-        });
+        }).collect::<Vec<i64>>();
+    Ok(iter)
+}
 
+fn get_all_windows() -> Result<(
+    Vec<WindowWrapper<AXUIElement>>,
+    Vec<WindowWrapper<AXUIElement>>,
+)> {
     let mut window_pids_deduped = vec![];
-    for pid in window_pids {
+    // First use onScreenOnly to get apps with recent windows first
+    for &pid in get_window_pids(true)?.iter() {
+        if !window_pids_deduped.contains(&pid) {
+            window_pids_deduped.push(pid);
+        }
+    }
+    // Then get everything else to get apps with minimized
+    for &pid in get_window_pids(false)?.iter() {
         if !window_pids_deduped.contains(&pid) {
             window_pids_deduped.push(pid);
         }
@@ -62,15 +78,20 @@ fn get_all_windows() -> Result<Vec<WindowWrapper<AXUIElement>>> {
         .map(|pid| AXUIElement::application(*pid as i32))
         .collect::<Vec<_>>();
 
-    let mut res = vec![];
+    let mut open_windows = vec![];
+    let mut minimized_windows = vec![];
     for app in apps {
         match app.windows() {
             Ok(windows) => {
                 for w in windows.iter() {
                     if w.role()? == kAXWindowRole {
                         let w = WindowWrapper(w.clone());
-                        w.debug_attributes()?;
-                        res.push(w);
+                        // w.debug_attributes()?;
+                        if w.minimized()? {
+                            minimized_windows.push(w);
+                        } else {
+                            open_windows.push(w);
+                        }
                     }
                 }
             }
@@ -82,9 +103,10 @@ fn get_all_windows() -> Result<Vec<WindowWrapper<AXUIElement>>> {
         }
     }
 
-    eprintln!("window list: {:?}", res);
+    eprintln!("open windows: {:?}", open_windows);
+    eprintln!("minimized windows: {:?}", minimized_windows);
 
-    Ok(res)
+    Ok((open_windows, minimized_windows))
 }
 
 #[derive(Debug)]
@@ -93,7 +115,8 @@ pub struct WindowManager {
     mode: Mode,
     layout: Layout,
     active_window_idx: Option<usize>,
-    windows: Vec<WindowWrapper<AXUIElement>>,
+    open_windows: Vec<WindowWrapper<AXUIElement>>,
+    minimized_windows: Vec<WindowWrapper<AXUIElement>>,
     primary_column_max_windows: i32,
     primary_column_pct: u8,
 }
@@ -105,16 +128,19 @@ impl WindowManager {
             mode: Mode::Normal,
             layout: Layout::Floating,
             active_window_idx: None,
-            windows: vec![],
+            open_windows: vec![],
+            minimized_windows: vec![],
             primary_column_max_windows: 1,
             primary_column_pct: 50,
         }
     }
 
     pub fn refresh_window_list(&mut self) -> Result<()> {
-        self.windows = get_all_windows()?;
+        let (open_windows, minimized_windows) = get_all_windows()?;
+        self.open_windows = open_windows;
+        self.minimized_windows = minimized_windows;
         self.active_window_idx = self
-            .windows
+            .open_windows
             .iter()
             .position(|w| w.frontmost_and_main().unwrap_or(false));
         if self.active_window_idx.is_none() {
@@ -149,7 +175,7 @@ impl WindowManager {
             None => Ok(None),
             Some(idx) => {
                 let window = self
-                    .windows
+                    .open_windows
                     .get(idx)
                     .ok_or(accessibility::Error::NotFound)?;
                 Ok(Some(window))
@@ -168,7 +194,7 @@ impl WindowManager {
 
     fn _next_window_idx(&mut self) -> Option<usize> {
         self.active_window_idx.map(|idx| {
-            if idx >= self.windows.len() - 1 {
+            if idx >= self.open_windows.len() - 1 {
                 0
             } else {
                 idx + 1
@@ -179,7 +205,7 @@ impl WindowManager {
     fn _prev_window_idx(&mut self) -> Option<usize> {
         self.active_window_idx.map(|idx| {
             if idx == 0 {
-                self.windows.len() - 1
+                self.open_windows.len() - 1
             } else {
                 idx - 1
             }
@@ -213,7 +239,7 @@ impl WindowManager {
     fn swap_window_prev(&mut self) {
         match (self.active_window_idx, self.prev_window_idx()) {
             (Some(idx), Some(prev_idx)) => {
-                self.windows.swap(idx, prev_idx);
+                self.open_windows.swap(idx, prev_idx);
                 self.active_window_idx = Some(prev_idx);
             }
             _ => (),
@@ -223,7 +249,7 @@ impl WindowManager {
     fn swap_window_next(&mut self) {
         match (self.active_window_idx, self.next_window_idx()) {
             (Some(idx), Some(next_idx)) => {
-                self.windows.swap(idx, next_idx);
+                self.open_windows.swap(idx, next_idx);
                 self.active_window_idx = Some(next_idx);
             }
             _ => (),
@@ -290,6 +316,34 @@ impl WindowManager {
         Ok(())
     }
 
+    fn minimize_active_window(&mut self) -> Result<()> {
+        if let Some(window) = self.get_active_window()? {
+            window.set_minimized(true)?;
+            let idx = self.active_window_idx.unwrap();
+            let w = self.open_windows.remove(idx);
+            self.minimized_windows.push(w);
+            self.active_window_idx = if self.open_windows.len() == 0 {
+                None
+            } else {
+                Some(usize::min(idx, self.open_windows.len() - 1))
+            };
+            Ok(())
+        } else {
+            Ok(())
+        }
+    }
+
+    fn unminimize_window(&mut self) -> Result<()> {
+        if let Some(window) = self.minimized_windows.pop() {
+            window.set_minimized(false)?;
+            self.open_windows.insert(0, window);
+            self.active_window_idx = Some(0);
+            Ok(())
+        } else {
+            Ok(())
+        }
+    }
+
     pub fn layout(&self) -> &Layout {
         &self.layout
     }
@@ -315,13 +369,13 @@ impl WindowManager {
     }
 
     fn relayout(&self) -> Result<()> {
-        self.layout.apply(&self.windows)
+        self.layout.apply(&self.open_windows)
     }
 
     fn incr_primary_column_max_windows(&mut self) {
         self.primary_column_max_windows = i32::min(
             self.primary_column_max_windows + 1,
-            self.windows.len() as i32,
+            self.open_windows.len() as i32,
         );
         self.set_layout_tile_horizontal();
     }
@@ -372,6 +426,16 @@ impl WindowManager {
             WindowFull => self.set_active_window_full(),
             WindowLeftHalf => self.set_active_window_left(),
             WindowRightHalf => self.set_active_window_right(),
+            WindowMinimize => {
+                self.minimize_active_window()?;
+                self.activate_active_window()?;
+                self.relayout()
+            }
+            WindowRestore => {
+                self.unminimize_window()?;
+                self.activate_active_window()?;
+                self.relayout()
+            }
             NextWindow => self.next_window(),
             PrevWindow => self.prev_window(),
             SwapNextWindow => {

@@ -145,6 +145,16 @@ pub trait Window {
         let display = CGDisplay::new(*display_id);
         Ok(display)
     }
+
+    fn minimized(&self) -> Result<bool> {
+        let b = self.element().minimized()?.into();
+        Ok(b)
+    }
+
+    fn set_minimized(&self, minimized: bool) -> Result<()> {
+        self.element().set_attribute(&AXAttribute::minimized(), minimized)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
