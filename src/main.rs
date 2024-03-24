@@ -2,32 +2,17 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 
 use accessibility::AXUIElement;
-use awesome_rs::{DragWindow, Layout, WindowManager};
+use awesome_rs::{Action, DragWindow, Mode, WindowManager};
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
 use core_graphics::event::{
     CGEvent, CGEventFlags, CGEventTap, CGEventTapCallbackResult, CGEventTapLocation,
-    CGEventTapOptions, CGEventTapPlacement, CGEventType, EventField,
+    CGEventTapOptions, CGEventTapPlacement, CGEventType,
 };
-
-// <CTL> + <ALT>
-fn awesome_normal_mode_flags() -> CGEventFlags {
-    CGEventFlags::CGEventFlagAlternate | CGEventFlags::CGEventFlagControl
-}
 
 // <ALT>
 fn awesome_normal_mode_drag_window_flags() -> CGEventFlags {
     CGEventFlags::CGEventFlagAlternate
 }
-
-const AWESOME_LAYOUT_CASCADE: i64 = 0; // a
-const AWESOME_LAYOUT_FLOATING: i64 = 3; // f
-const AWESOME_LAYOUT_TILE_HORIZONTAL: i64 = 17; // f
-const AWESOME_REFRESH_WINDOW_LIST: i64 = 15; // r
-const AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY: i64 = 4; // h
-const AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY: i64 = 37; // l
-const AWESOME_NORMAL_MODE_WINDOW_FULL_KEY: i64 = 36; // <ENTER>
-const AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY: i64 = 38; // j
-const AWESOME_NORMAL_MODE_PREV_WINDOW_KEY: i64 = 40; // k
 
 fn main() {
     let mut wm = WindowManager::new();
@@ -67,20 +52,16 @@ fn mk_event_tap_callback(
 ) -> impl Fn(*const c_void, CGEventType, &CGEvent) -> CGEventTapCallbackResult + '_ {
     use CGEventType::*;
     |_, event_type, event| -> CGEventTapCallbackResult {
+        let mut s = state.borrow_mut();
         match event_type {
             MouseMoved => {
-                if let Some(dw) = state.borrow().drag_window() {
+                if let Some(dw) = s.drag_window() {
                     dw.set_position_around(&event.location()).unwrap()
                 }
-                CGEventTapCallbackResult::Keep
             }
-
             FlagsChanged => {
                 // println!("FlagsChanged {:?}", event.get_flags());
-                let mut s = state.borrow_mut();
-                if event.get_flags().contains(awesome_normal_mode_flags()) {
-                    s.toggle_mode();
-                } else if event
+                if event
                     .get_flags()
                     .contains(awesome_normal_mode_drag_window_flags())
                     && s.is_normal_mode()
@@ -96,158 +77,19 @@ fn mk_event_tap_callback(
                 } else {
                     s.set_drag_window(None);
                 }
+            }
+            _ => (),
+        };
+        match Action::of_cg_event(&event, &s.mode(), &s.layout()) {
+            Some(action) => {
+                s.do_action(&action)
+                    .unwrap_or_else(|e| eprintln!("While performing {:?}: {:?}", action, e));
+                CGEventTapCallbackResult::Drop
+            }
+            None => {
+                s.set_mode(Mode::Insert);
                 CGEventTapCallbackResult::Keep
             }
-            KeyDown => {
-                let keycode = event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE);
-                println!("KeyDown {}", keycode);
-                let mut s = state.borrow_mut();
-                match keycode {
-                    AWESOME_NORMAL_MODE_WINDOW_FULL_KEY if s.is_normal_mode() => {
-                        s.set_active_window_full()
-                            .unwrap_or_else(|e| eprintln!("While setting window full: {}", e));
-                        CGEventTapCallbackResult::Drop
-                    }
-
-                    AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY
-                        if s.is_normal_mode()
-                            && event
-                                .get_flags()
-                                .contains(CGEventFlags::CGEventFlagAlternate) =>
-                    {
-                        match s.layout() {
-                            Layout::TileHorizontal(_) => {
-                                s.incr_primary_column_max_windows();
-                                s.relayout()
-                                    .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
-                            }
-                            _ => ()
-                        }
-                        CGEventTapCallbackResult::Drop
-                    }
-
-                    AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY if s.is_normal_mode() => {
-                        match s.layout() {
-                            Layout::TileHorizontal(_) => {
-                                s.decr_primary_column_width();
-                                s.relayout()
-                                    .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
-                            }
-                            _ => {
-                                s.set_active_window_left().unwrap_or_else(|e| {
-                                    eprintln!("While setting window left: {}", e)
-                                });
-                            }
-                        }
-                        CGEventTapCallbackResult::Drop
-                    }
-
-                    AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY
-                        if s.is_normal_mode()
-                        && event
-                        .get_flags()
-                        .contains(CGEventFlags::CGEventFlagAlternate) =>
-                    {
-                        match s.layout() {
-                            Layout::TileHorizontal(_) => {
-                                s.decr_primary_column_max_windows();
-                                s.relayout()
-                                    .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
-                            }
-                            _ => ()
-                        }
-                        CGEventTapCallbackResult::Drop
-                    }
-
-                    AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY if s.is_normal_mode() => {
-                        match s.layout() {
-                            Layout::TileHorizontal(_) => {
-                                s.incr_primary_column_width();
-                                s.relayout()
-                                    .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
-                            }
-                            _ => {
-                                s.set_active_window_right().unwrap_or_else(|e| {
-                                    eprintln!("While setting window right: {}", e)
-                                });
-                            }
-                        }
-                        CGEventTapCallbackResult::Drop
-                    }
-
-                    AWESOME_NORMAL_MODE_PREV_WINDOW_KEY
-                        if s.is_normal_mode()
-                            && event
-                                .get_flags()
-                                .contains(CGEventFlags::CGEventFlagAlternate) =>
-                    {
-                        s.swap_window_prev();
-                        s.relayout()
-                            .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
-                        CGEventTapCallbackResult::Drop
-                    }
-
-                    AWESOME_NORMAL_MODE_PREV_WINDOW_KEY if s.is_normal_mode() => {
-                        s.prev_window()
-                            .unwrap_or_else(|e| eprintln!("While switching to prev window: {}", e));
-                        CGEventTapCallbackResult::Drop
-                    }
-
-                    AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY
-                        if s.is_normal_mode()
-                            && event
-                                .get_flags()
-                                .contains(CGEventFlags::CGEventFlagAlternate) =>
-                    {
-                        s.swap_window_next();
-                        s.relayout()
-                            .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
-                        CGEventTapCallbackResult::Drop
-                    }
-
-                    AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY if s.is_normal_mode() => {
-                        s.next_window()
-                            .unwrap_or_else(|e| eprintln!("While switching to next window: {}", e));
-                        CGEventTapCallbackResult::Drop
-                    }
-
-                    AWESOME_REFRESH_WINDOW_LIST if s.is_normal_mode() => {
-                        s.refresh_window_list()
-                            .expect("Could not get initial window list");
-                        CGEventTapCallbackResult::Drop
-                    }
-
-                    AWESOME_LAYOUT_FLOATING if s.is_normal_mode() => {
-                        s.set_layout_floating();
-                        s.relayout()
-                            .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
-                        CGEventTapCallbackResult::Drop
-                    }
-
-                    AWESOME_LAYOUT_CASCADE if s.is_normal_mode() => {
-                        s.set_layout_cascade();
-                        s.relayout()
-                            .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
-                        CGEventTapCallbackResult::Drop
-                    }
-
-                    AWESOME_LAYOUT_TILE_HORIZONTAL if s.is_normal_mode() => {
-                        s.set_layout_tile_horizontal();
-                        s.relayout()
-                            .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
-                        CGEventTapCallbackResult::Drop
-                    }
-
-                    _ if s.is_normal_mode() => {
-                        // Enter Insert mode on any other key
-                        s.exit_normal_mode();
-                        CGEventTapCallbackResult::Drop
-                    }
-
-                    _ => CGEventTapCallbackResult::Keep,
-                }
-            }
-            _ => CGEventTapCallbackResult::Keep,
         }
     }
 }

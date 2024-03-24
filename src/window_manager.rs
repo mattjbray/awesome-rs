@@ -17,18 +17,13 @@ use core_graphics::{
 };
 
 use crate::{
+    action::Action,
     drag_window::DragWindow,
+    layout::Layout,
+    mode::Mode,
     window::{Window, WindowWrapper},
     CGErrorWrapper,
 };
-
-pub use crate::layout::Layout;
-
-#[derive(Debug, PartialEq)]
-pub enum Mode {
-    Normal,
-    Insert,
-}
 
 fn get_all_windows() -> Result<Vec<WindowWrapper<AXUIElement>>> {
     let window_list: CFArray<*const c_void> = CGDisplay::window_list_info(
@@ -144,12 +139,17 @@ impl WindowManager {
         self.mode == Mode::Normal
     }
 
+    pub fn set_mode(&mut self, mode: Mode) {
+        self.mode = mode;
+        println!("Entered {:?} mode", self.mode);
+    }
+
     pub fn toggle_mode(&mut self) {
-        self.mode = match self.mode {
+        let mode = match self.mode {
             Mode::Normal => Mode::Insert,
             Mode::Insert => Mode::Normal,
         };
-        println!("Entered {:?} mode", self.mode);
+        self.set_mode(mode);
     }
 
     pub fn exit_normal_mode(&mut self) {
@@ -356,5 +356,57 @@ impl WindowManager {
             self.primary_column_pct -= 10;
         }
         self.set_layout_tile_horizontal();
+    }
+
+    pub fn do_action(&mut self, action: &Action) -> Result<()> {
+        use Action::*;
+        match action {
+            RefreshWindowList => self.refresh_window_list(),
+            ModeNormal => {
+                self.set_mode(Mode::Normal);
+                Ok(())
+            }
+            LayoutFloating => {
+                self.set_layout_floating();
+                self.relayout()
+            }
+            LayoutCascade => {
+                self.set_layout_cascade();
+                self.relayout()
+            }
+            LayoutTiling => {
+                self.set_layout_tile_horizontal();
+                self.relayout()
+            }
+            WindowFull => self.set_active_window_full(),
+            WindowLeftHalf => self.set_active_window_left(),
+            WindowRightHalf => self.set_active_window_right(),
+            NextWindow => self.next_window(),
+            PrevWindow => self.prev_window(),
+            SwapNextWindow => {
+                self.swap_window_next();
+                self.relayout()
+            }
+            SwapPrevWindow => {
+                self.swap_window_prev();
+                self.relayout()
+            }
+            IncrPrimaryColWidth => {
+                self.incr_primary_column_width();
+                self.relayout()
+            }
+            DecrPrimaryColWidth => {
+                self.decr_primary_column_width();
+                self.relayout()
+            }
+            IncrPrimaryColWindows => {
+                self.incr_primary_column_max_windows();
+                self.relayout()
+            }
+            DecrPrimaryColWindows => {
+                self.decr_primary_column_max_windows();
+                self.relayout()
+            }
+        }
     }
 }
