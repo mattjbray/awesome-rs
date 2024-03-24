@@ -5,20 +5,35 @@ use core_graphics::display::{CGPoint, CGRect, CGSize};
 use crate::{window::WindowWrapper, Window};
 
 #[derive(Debug)]
+pub struct TileHorizontalOpts {
+    pub max_num_left: i32,
+}
+
+#[derive(Debug)]
 pub enum Layout {
     Floating,
     Cascade,
-    TileHorizontal,
+    TileHorizontal(TileHorizontalOpts),
 }
 
 type Windows = Vec<WindowWrapper<AXUIElement>>;
 
 impl Layout {
+    pub fn floating() -> Self {
+        Self::Floating
+    }
+    pub fn cascade() -> Self {
+        Self::Cascade
+    }
+    pub fn tile_horizontal(max_num_left: i32) -> Self {
+        Self::TileHorizontal(TileHorizontalOpts { max_num_left })
+    }
+
     pub fn apply(&self, windows: &Windows) -> Result<()> {
         match self {
             Layout::Floating => Ok(()),
             Layout::Cascade => self.apply_cascade(windows),
-            Layout::TileHorizontal => self.apply_tile_horizontal(windows),
+            Layout::TileHorizontal(opts) => self.apply_tile_horizontal(windows, &opts),
         }
     }
 
@@ -38,7 +53,7 @@ impl Layout {
         Ok(())
     }
 
-    fn apply_tile_horizontal(&self, windows: &Windows) -> Result<()> {
+    fn apply_tile_horizontal(&self, windows: &Windows, opts: &TileHorizontalOpts) -> Result<()> {
         let num_windows = windows.len() as i32;
 
         if num_windows == 0 {
@@ -47,7 +62,7 @@ impl Layout {
 
         let d = windows[0].display()?.bounds();
 
-        let num_left = i32::min(num_windows, 2);
+        let num_left = i32::min(num_windows, opts.max_num_left);
         let num_right = if num_windows > num_left {
             num_windows - num_left
         } else {
@@ -79,7 +94,7 @@ impl Layout {
 
         // Right column
 
-        let width = d.size.width / 2. ;
+        let width = d.size.width / 2.;
 
         let height = (d.size.height - 38.) / num_right as f64;
 

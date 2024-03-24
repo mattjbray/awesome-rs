@@ -99,6 +99,7 @@ pub struct WindowManager {
     layout: Layout,
     active_window_idx: Option<usize>,
     windows: Vec<WindowWrapper<AXUIElement>>,
+    max_primary_column_windows: i32,
 }
 
 impl WindowManager {
@@ -109,6 +110,7 @@ impl WindowManager {
             layout: Layout::Floating,
             active_window_idx: None,
             windows: vec![],
+            max_primary_column_windows: 1,
         }
     }
 
@@ -295,12 +297,39 @@ impl WindowManager {
         Ok(())
     }
 
-    pub fn set_layout(&mut self, layout: Layout) {
+    pub fn layout(&self) -> &Layout {
+        &self.layout
+    }
+
+    fn set_layout(&mut self, layout: Layout) {
         self.layout = layout;
         eprintln!("set_layout: {:?}", self.layout);
     }
 
+    pub fn set_layout_floating(&mut self) {
+        self.set_layout(Layout::floating())
+    }
+    pub fn set_layout_cascade(&mut self) {
+        self.set_layout(Layout::cascade())
+    }
+    pub fn set_layout_tile_horizontal(&mut self) {
+        self.set_layout(Layout::tile_horizontal(self.max_primary_column_windows))
+    }
+
     pub fn relayout(&self) -> Result<()> {
         self.layout.apply(&self.windows)
+    }
+
+    pub fn incr_max_primary_column_windows(&mut self) {
+        self.max_primary_column_windows = i32::min(
+            self.max_primary_column_windows + 1,
+            self.windows.len() as i32,
+        );
+        self.set_layout(Layout::tile_horizontal(self.max_primary_column_windows));
+    }
+
+    pub fn decr_max_primary_column_windows(&mut self) {
+        self.max_primary_column_windows = i32::max(self.max_primary_column_windows - 1, 1);
+        self.set_layout(Layout::tile_horizontal(self.max_primary_column_windows));
     }
 }

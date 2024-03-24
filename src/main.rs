@@ -110,14 +110,34 @@ fn mk_event_tap_callback(
                     }
 
                     AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY if s.is_normal_mode() => {
-                        s.set_active_window_left()
-                            .unwrap_or_else(|e| eprintln!("While setting window left: {}", e));
+                        match s.layout() {
+                            Layout::TileHorizontal(_) => {
+                                s.incr_max_primary_column_windows();
+                                s.relayout()
+                                    .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
+                            }
+                            _ => {
+                                s.set_active_window_left().unwrap_or_else(|e| {
+                                    eprintln!("While setting window left: {}", e)
+                                });
+                            }
+                        }
                         CGEventTapCallbackResult::Drop
                     }
 
                     AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY if s.is_normal_mode() => {
-                        s.set_active_window_right()
-                            .unwrap_or_else(|e| eprintln!("While setting window right: {}", e));
+                        match s.layout() {
+                            Layout::TileHorizontal(_) => {
+                                s.decr_max_primary_column_windows();
+                                s.relayout()
+                                    .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
+                            }
+                            _ => {
+                                s.set_active_window_right().unwrap_or_else(|e| {
+                                    eprintln!("While setting window right: {}", e)
+                                });
+                            }
+                        }
                         CGEventTapCallbackResult::Drop
                     }
 
@@ -164,21 +184,21 @@ fn mk_event_tap_callback(
                     }
 
                     AWESOME_LAYOUT_FLOATING if s.is_normal_mode() => {
-                        s.set_layout(Layout::Floating);
+                        s.set_layout_floating();
                         s.relayout()
                             .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
                         CGEventTapCallbackResult::Drop
                     }
 
                     AWESOME_LAYOUT_CASCADE if s.is_normal_mode() => {
-                        s.set_layout(Layout::Cascade);
+                        s.set_layout_cascade();
                         s.relayout()
                             .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
                         CGEventTapCallbackResult::Drop
                     }
 
                     AWESOME_LAYOUT_TILE_HORIZONTAL if s.is_normal_mode() => {
-                        s.set_layout(Layout::TileHorizontal);
+                        s.set_layout_tile_horizontal();
                         s.relayout()
                             .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
                         CGEventTapCallbackResult::Drop
