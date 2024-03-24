@@ -21,6 +21,7 @@ fn awesome_normal_mode_drag_window_flags() -> CGEventFlags {
 
 const AWESOME_LAYOUT_CASCADE: i64 = 0; // a
 const AWESOME_LAYOUT_FLOATING: i64 = 3; // f
+const AWESOME_LAYOUT_TILE_HORIZONTAL: i64 = 17; // f
 const AWESOME_REFRESH_WINDOW_LIST: i64 = 15; // r
 const AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY: i64 = 4; // h
 const AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY: i64 = 37; // l
@@ -171,6 +172,13 @@ fn mk_event_tap_callback(
 
                     AWESOME_LAYOUT_CASCADE if s.is_normal_mode() => {
                         s.set_layout(Layout::Cascade);
+                        s.relayout()
+                            .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
+                        CGEventTapCallbackResult::Drop
+                    }
+
+                    AWESOME_LAYOUT_TILE_HORIZONTAL if s.is_normal_mode() => {
+                        s.set_layout(Layout::TileHorizontal);
                         s.relayout()
                             .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
                         CGEventTapCallbackResult::Drop

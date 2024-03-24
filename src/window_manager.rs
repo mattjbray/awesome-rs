@@ -301,6 +301,6 @@ impl WindowManager {
     }
 
     pub fn relayout(&self) -> Result<()> {
-        self.layout.apply(self.windows.iter())
+        self.layout.apply(&self.windows)
     }
 }
