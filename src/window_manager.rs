@@ -179,7 +179,7 @@ impl WindowManager {
         }
     }
 
-    fn prev_window_idx(&mut self) -> Option<usize> {
+    fn _next_window_idx(&mut self) -> Option<usize> {
         self.active_window_idx.map(|idx| {
             if idx >= self.windows.len() - 1 {
                 0
@@ -189,11 +189,7 @@ impl WindowManager {
         })
     }
 
-    fn incr_active_window(&mut self) {
-        self.active_window_idx = self.prev_window_idx()
-    }
-
-    fn next_window_idx(&mut self) -> Option<usize> {
+    fn _prev_window_idx(&mut self) -> Option<usize> {
         self.active_window_idx.map(|idx| {
             if idx == 0 {
                 self.windows.len() - 1
@@ -203,17 +199,27 @@ impl WindowManager {
         })
     }
 
-    fn decr_active_window(&mut self) {
-        self.active_window_idx = self.next_window_idx()
+    fn next_window_idx(&mut self) -> Option<usize> {
+        match self.layout {
+            Layout::TileHorizontal(_) => self._next_window_idx(),
+            _ => self._prev_window_idx(),
+        }
+    }
+
+    fn prev_window_idx(&mut self) -> Option<usize> {
+        match self.layout {
+            Layout::TileHorizontal(_) => self._prev_window_idx(),
+            _ => self._next_window_idx(),
+        }
     }
 
     pub fn next_window(&mut self) -> Result<()> {
-        self.decr_active_window();
+        self.active_window_idx = self.next_window_idx();
         self.activate_active_window()
     }
 
     pub fn prev_window(&mut self) -> Result<()> {
-        self.incr_active_window();
+        self.active_window_idx = self.prev_window_idx();
         self.activate_active_window()
     }
 
