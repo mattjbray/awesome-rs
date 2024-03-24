@@ -22,6 +22,8 @@ use crate::{
     CGErrorWrapper,
 };
 
+pub use crate::layout::Layout;
+
 #[derive(Debug, PartialEq)]
 pub enum Mode {
     Normal,
@@ -94,6 +96,7 @@ fn get_all_windows() -> Result<Vec<WindowWrapper<AXUIElement>>> {
 pub struct WindowManager {
     drag_window: Option<DragWindow>,
     mode: Mode,
+    layout: Layout,
     active_window_idx: Option<usize>,
     windows: Vec<WindowWrapper<AXUIElement>>,
 }
@@ -103,12 +106,13 @@ impl WindowManager {
         WindowManager {
             drag_window: None,
             mode: Mode::Normal,
+            layout: Layout::Floating,
             active_window_idx: None,
             windows: vec![],
         }
     }
 
-    pub fn init(&mut self) -> Result<()> {
+    pub fn refresh_window_list(&mut self) -> Result<()> {
         self.windows = get_all_windows()?;
         self.active_window_idx = self
             .windows
@@ -291,19 +295,12 @@ impl WindowManager {
         Ok(())
     }
 
-    pub fn cascade_windows(&self) -> Result<()> {
-        for (i, w) in self.windows.iter().rev().enumerate() {
-            let d = w.display()?.bounds();
-            let rect = CGRect::new(
-                &CGPoint::new(
-                    d.origin.x + i as f64 * 32.,
-                    d.origin.y + 38. + i as f64 * 32.,
-                ),
-                &CGSize::new(d.size.width * 2. / 3., d.size.height * 2. / 3.),
-            );
-            w.set_frame(rect)
-                .unwrap_or_else(|e| eprintln!("Could not set_frame on window {:?}: {:?}", w, e));
-        }
-        Ok(())
+    pub fn set_layout(&mut self, layout: Layout) {
+        self.layout = layout;
+        eprintln!("set_layout: {:?}", self.layout);
+    }
+
+    pub fn relayout(&self) -> Result<()> {
+        self.layout.apply(self.windows.iter())
     }
 }

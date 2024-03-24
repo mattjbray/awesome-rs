@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 
 use accessibility::AXUIElement;
-use awesome_rs::{DragWindow, WindowManager};
+use awesome_rs::{DragWindow, Layout, WindowManager};
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
 use core_graphics::event::{
     CGEvent, CGEventFlags, CGEventTap, CGEventTapCallbackResult, CGEventTapLocation,
@@ -19,7 +19,8 @@ fn awesome_normal_mode_drag_window_flags() -> CGEventFlags {
     CGEventFlags::CGEventFlagAlternate
 }
 
-const AWESOME_CASCADE_WINDOWS: i64 = 0; // a
+const AWESOME_LAYOUT_CASCADE: i64 = 0; // a
+const AWESOME_LAYOUT_FLOATING: i64 = 3; // f
 const AWESOME_REFRESH_WINDOW_LIST: i64 = 15; // r
 const AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY: i64 = 4; // h
 const AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY: i64 = 37; // l
@@ -29,7 +30,8 @@ const AWESOME_NORMAL_MODE_PREV_WINDOW_KEY: i64 = 40; // k
 
 fn main() {
     let mut wm = WindowManager::new();
-    wm.init().expect("Could not get initial window list");
+    wm.refresh_window_list()
+        .expect("Could not get initial window list");
     let state: RefCell<WindowManager> = RefCell::new(wm);
 
     let event_tap = {
@@ -63,7 +65,7 @@ fn mk_event_tap_callback(
     state: &RefCell<WindowManager>,
 ) -> impl Fn(*const c_void, CGEventType, &CGEvent) -> CGEventTapCallbackResult + '_ {
     use CGEventType::*;
-    |_, event_type, event| {
+    |_, event_type, event| -> CGEventTapCallbackResult {
         match event_type {
             MouseMoved => {
                 if let Some(dw) = state.borrow().drag_window() {
@@ -125,8 +127,8 @@ fn mk_event_tap_callback(
                                 .contains(CGEventFlags::CGEventFlagAlternate) =>
                     {
                         s.swap_window_prev();
-                        s.cascade_windows()
-                            .unwrap_or_else(|e| eprintln!("While cascading windows: {}", e));
+                        s.relayout()
+                            .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
                         CGEventTapCallbackResult::Drop
                     }
 
@@ -138,13 +140,13 @@ fn mk_event_tap_callback(
 
                     AWESOME_NORMAL_MODE_NEXT_WINDOW_KEY
                         if s.is_normal_mode()
-                        && event
-                        .get_flags()
-                        .contains(CGEventFlags::CGEventFlagAlternate) =>
+                            && event
+                                .get_flags()
+                                .contains(CGEventFlags::CGEventFlagAlternate) =>
                     {
                         s.swap_window_next();
-                        s.cascade_windows()
-                            .unwrap_or_else(|e| eprintln!("While cascading windows: {}", e));
+                        s.relayout()
+                            .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
                         CGEventTapCallbackResult::Drop
                     }
 
@@ -155,14 +157,22 @@ fn mk_event_tap_callback(
                     }
 
                     AWESOME_REFRESH_WINDOW_LIST if s.is_normal_mode() => {
-                        s.init().expect("Could not get initial window list");
+                        s.refresh_window_list()
+                            .expect("Could not get initial window list");
                         CGEventTapCallbackResult::Drop
                     }
 
-                    AWESOME_CASCADE_WINDOWS if s.is_normal_mode() => {
-                        // s.init().expect("Could not get initial window list");
-                        s.cascade_windows()
-                            .unwrap_or_else(|e| eprintln!("While cascading windows: {}", e));
+                    AWESOME_LAYOUT_FLOATING if s.is_normal_mode() => {
+                        s.set_layout(Layout::Floating);
+                        s.relayout()
+                            .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
+                        CGEventTapCallbackResult::Drop
+                    }
+
+                    AWESOME_LAYOUT_CASCADE if s.is_normal_mode() => {
+                        s.set_layout(Layout::Cascade);
+                        s.relayout()
+                            .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
                         CGEventTapCallbackResult::Drop
                     }
 
