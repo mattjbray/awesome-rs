@@ -49,7 +49,7 @@ impl Action {
                 let keycode = event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE);
                 println!("KeyDown ({:?}) {}", mode, keycode);
                 match (mode, flags, keycode, layout) {
-                    (Mode::Insert, _, KEYCODE_A, _) if flags == FLG_CTRL | FLG_ALT => {
+                    (Mode::Insert, _, KEYCODE_A, _) if flags == FLG_CTRL | FLG_CMD => {
                         Some(Action::ModeNormal)
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_A, _) => Some(Action::LayoutCascade),
