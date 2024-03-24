@@ -71,9 +71,11 @@ fn mk_event_tap_callback(
                         None
                     });
                     s.set_drag_window(ws);
-                    // if let Some(window_state) = s.window_state.as_ref() {
-                    //     window_state.window.activate().unwrap()
-                    // }
+                    if let Some(drag_window) = s.drag_window() {
+                        drag_window
+                            .activate_window()
+                            .unwrap_or_else(|e| eprintln!("While activating drag window: {:?}", e))
+                    }
                 } else {
                     s.set_drag_window(None);
                 }

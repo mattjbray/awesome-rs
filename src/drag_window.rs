@@ -51,4 +51,8 @@ impl DragWindow {
 
         self.window.set_position(CGPoint::new(x, y))
     }
+
+    pub fn activate_window(&self) -> Result<()> {
+        self.window.activate()
+    }
 }
