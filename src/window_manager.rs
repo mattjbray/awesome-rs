@@ -166,6 +166,7 @@ impl WindowManager {
 
     fn activate_active_window(&self) -> Result<()> {
         if let Some(w) = self.get_active_window()? {
+            eprintln!("Activate window {:?}", w);
             w.activate()
         } else {
             Ok(())
@@ -193,12 +194,12 @@ impl WindowManager {
     }
 
     pub fn next_window(&mut self) -> Result<()> {
-        self.incr_active_window();
+        self.decr_active_window();
         self.activate_active_window()
     }
 
     pub fn prev_window(&mut self) -> Result<()> {
-        self.decr_active_window();
+        self.incr_active_window();
         self.activate_active_window()
     }
 
