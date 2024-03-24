@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 
 use accessibility::AXUIElement;
-use awesome_rs::{Action, DragWindow, Mode, WindowManager};
+use awesome_rs::{Action, DragWindow, WindowManager};
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
 use core_graphics::event::{
     CGEvent, CGEventFlags, CGEventTap, CGEventTapCallbackResult, CGEventTapLocation,
@@ -86,10 +86,7 @@ fn mk_event_tap_callback(
                     .unwrap_or_else(|e| eprintln!("While performing {:?}: {:?}", action, e));
                 CGEventTapCallbackResult::Drop
             }
-            None => {
-                s.set_mode(Mode::Insert);
-                CGEventTapCallbackResult::Keep
-            }
+            None => CGEventTapCallbackResult::Keep,
         }
     }
 }

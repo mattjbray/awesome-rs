@@ -5,6 +5,7 @@ use crate::{mode::Mode, Layout};
 #[derive(Debug)]
 pub enum Action {
     ModeNormal,
+    ModeInsert,
     RefreshWindowList,
     LayoutFloating,
     LayoutCascade,
@@ -77,6 +78,7 @@ impl Action {
                     (Mode::Normal, KEYCODE_J, _) => Some(Action::NextWindow),
                     (Mode::Normal, KEYCODE_K, _) => Some(Action::PrevWindow),
                     (Mode::Normal, KEYCODE_ENT, _) => Some(Action::WindowFull),
+                    (Mode::Normal, _, _) => Some(Action::ModeInsert),
                     _ => None,
                 }
             }

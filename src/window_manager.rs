@@ -366,6 +366,10 @@ impl WindowManager {
                 self.set_mode(Mode::Normal);
                 Ok(())
             }
+            ModeInsert => {
+                self.set_mode(Mode::Insert);
+                Ok(())
+            }
             LayoutFloating => {
                 self.set_layout_floating();
                 self.relayout()
