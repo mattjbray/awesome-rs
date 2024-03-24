@@ -55,10 +55,10 @@ impl Action {
                     (Mode::Normal, FLG_NULL, KEYCODE_A, _) => Some(Action::LayoutCascade),
                     (Mode::Normal, FLG_NULL, KEYCODE_F, _) => Some(Action::LayoutFloating),
                     (Mode::Normal, FLG_ALT, KEYCODE_H, Layout::TileHorizontal(_)) => {
-                        Some(Action::DecrPrimaryColWindows)
+                        Some(Action::IncrPrimaryColWindows)
                     }
                     (Mode::Normal, FLG_ALT, KEYCODE_L, Layout::TileHorizontal(_)) => {
-                        Some(Action::IncrPrimaryColWindows)
+                        Some(Action::DecrPrimaryColWindows)
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_H, Layout::TileHorizontal(_)) => {
                         Some(Action::DecrPrimaryColWidth)
