@@ -82,11 +82,12 @@ impl Layout {
         };
 
         let left_height = (d.size.height - 38.) / num_left as f64;
+        let left_size = CGSize::new(left_width, left_height);
 
         for (i, w) in windows.iter().take(num_left as usize).enumerate() {
             let rect = CGRect::new(
                 &CGPoint::new(d.origin.x, d.origin.y + 38. + i as f64 * left_height),
-                &CGSize::new(left_width, left_height),
+                &left_size,
             );
             w.set_frame(rect)
                 .unwrap_or_else(|e| eprintln!("Could not set_frame on window {:?}: {:?}", w, e));
@@ -99,8 +100,8 @@ impl Layout {
         // Right column
 
         let right_width = d.size.width * ((100 - opts.primary_column_pct) as f64 / 100.);
-
         let right_height = (d.size.height - 38.) / num_right as f64;
+        let right_size = CGSize::new(right_width, right_height);
 
         for (i, w) in windows.iter().skip(num_left as usize).enumerate() {
             let rect = CGRect::new(
@@ -108,7 +109,7 @@ impl Layout {
                     d.origin.x + left_width,
                     d.origin.y + 38. + i as f64 * right_height,
                 ),
-                &CGSize::new(right_width, right_height),
+                &right_size,
             );
             w.set_frame(rect)
                 .unwrap_or_else(|e| eprintln!("Could not set_frame on window {:?}: {:?}", w, e));
