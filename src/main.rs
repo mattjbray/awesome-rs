@@ -19,6 +19,7 @@ fn awesome_normal_mode_drag_window_flags() -> CGEventFlags {
     CGEventFlags::CGEventFlagAlternate
 }
 
+const AWESOME_CASCADE_WINDOWS: i64 = 0; // a
 const AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY: i64 = 4; // h
 const AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY: i64 = 37; // l
 const AWESOME_NORMAL_MODE_WINDOW_FULL_KEY: i64 = 36; // <ENTER>
@@ -128,7 +129,14 @@ fn mk_event_tap_callback(
                         CGEventTapCallbackResult::Drop
                     }
 
-                    _ => {
+                    AWESOME_CASCADE_WINDOWS if s.is_normal_mode() => {
+                        s.init().expect("Could not get initial window list");
+                        s.cascade_windows()
+                            .unwrap_or_else(|e| eprintln!("While cascading windows: {}", e));
+                        CGEventTapCallbackResult::Drop
+                    }
+
+                    _ if s.is_normal_mode() => {
                         // Enter Insert mode on any other key
                         s.exit_normal_mode();
                         CGEventTapCallbackResult::Keep
