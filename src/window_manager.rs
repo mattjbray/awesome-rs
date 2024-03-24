@@ -100,7 +100,7 @@ impl WindowManager {
     pub fn new() -> Self {
         WindowManager {
             drag_window: None,
-            mode: Mode::Insert,
+            mode: Mode::Normal,
             active_window_idx: None,
             windows: vec![],
         }
