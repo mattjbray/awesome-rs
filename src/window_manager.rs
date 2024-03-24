@@ -139,24 +139,9 @@ impl WindowManager {
         self.mode == Mode::Normal
     }
 
-    pub fn set_mode(&mut self, mode: Mode) {
+    fn set_mode(&mut self, mode: Mode) {
         self.mode = mode;
         println!("Entered {:?} mode", self.mode);
-    }
-
-    pub fn toggle_mode(&mut self) {
-        let mode = match self.mode {
-            Mode::Normal => Mode::Insert,
-            Mode::Insert => Mode::Normal,
-        };
-        self.set_mode(mode);
-    }
-
-    pub fn exit_normal_mode(&mut self) {
-        if self.mode != Mode::Insert {
-            self.mode = Mode::Insert;
-            println!("Entered {:?} mode", self.mode);
-        }
     }
 
     fn get_active_window(&self) -> Result<Option<&WindowWrapper<AXUIElement>>> {
@@ -215,17 +200,17 @@ impl WindowManager {
         }
     }
 
-    pub fn next_window(&mut self) -> Result<()> {
+    fn next_window(&mut self) -> Result<()> {
         self.active_window_idx = self.next_window_idx();
         self.activate_active_window()
     }
 
-    pub fn prev_window(&mut self) -> Result<()> {
+    fn prev_window(&mut self) -> Result<()> {
         self.active_window_idx = self.prev_window_idx();
         self.activate_active_window()
     }
 
-    pub fn swap_window_prev(&mut self) {
+    fn swap_window_prev(&mut self) {
         match (self.active_window_idx, self.prev_window_idx()) {
             (Some(idx), Some(prev_idx)) => {
                 self.windows.swap(idx, prev_idx);
@@ -235,7 +220,7 @@ impl WindowManager {
         }
     }
 
-    pub fn swap_window_next(&mut self) {
+    fn swap_window_next(&mut self) {
         match (self.active_window_idx, self.next_window_idx()) {
             (Some(idx), Some(next_idx)) => {
                 self.windows.swap(idx, next_idx);
@@ -245,7 +230,7 @@ impl WindowManager {
         }
     }
 
-    pub fn set_active_window_full(&self) -> Result<()> {
+    fn set_active_window_full(&self) -> Result<()> {
         if let Some(window) = self.get_active_window()? {
             let display = window.display()?;
             window.set_frame(display.bounds())?;
@@ -253,7 +238,7 @@ impl WindowManager {
         Ok(())
     }
 
-    pub fn set_active_window_left(&self) -> Result<()> {
+    fn set_active_window_left(&self) -> Result<()> {
         if let Some(window) = self.get_active_window()? {
             let d = window.display()?.bounds();
             let w = window.frame()?;
@@ -280,7 +265,7 @@ impl WindowManager {
         Ok(())
     }
 
-    pub fn set_active_window_right(&self) -> Result<()> {
+    fn set_active_window_right(&self) -> Result<()> {
         if let Some(window) = self.get_active_window()? {
             let d = window.display()?.bounds();
             let w = window.frame()?;
@@ -314,24 +299,26 @@ impl WindowManager {
         eprintln!("set_layout: {:?}", self.layout);
     }
 
-    pub fn set_layout_floating(&mut self) {
+    fn set_layout_floating(&mut self) {
         self.set_layout(Layout::floating())
     }
-    pub fn set_layout_cascade(&mut self) {
+
+    fn set_layout_cascade(&mut self) {
         self.set_layout(Layout::cascade())
     }
-    pub fn set_layout_tile_horizontal(&mut self) {
+
+    fn set_layout_tile_horizontal(&mut self) {
         self.set_layout(Layout::tile_horizontal(
             self.primary_column_max_windows,
             self.primary_column_pct,
         ))
     }
 
-    pub fn relayout(&self) -> Result<()> {
+    fn relayout(&self) -> Result<()> {
         self.layout.apply(&self.windows)
     }
 
-    pub fn incr_primary_column_max_windows(&mut self) {
+    fn incr_primary_column_max_windows(&mut self) {
         self.primary_column_max_windows = i32::min(
             self.primary_column_max_windows + 1,
             self.windows.len() as i32,
@@ -339,19 +326,19 @@ impl WindowManager {
         self.set_layout_tile_horizontal();
     }
 
-    pub fn decr_primary_column_max_windows(&mut self) {
+    fn decr_primary_column_max_windows(&mut self) {
         self.primary_column_max_windows = i32::max(self.primary_column_max_windows - 1, 1);
         self.set_layout_tile_horizontal();
     }
 
-    pub fn incr_primary_column_width(&mut self) {
+    fn incr_primary_column_width(&mut self) {
         if self.primary_column_pct <= 80 {
             self.primary_column_pct += 10;
         }
         self.set_layout_tile_horizontal();
     }
 
-    pub fn decr_primary_column_width(&mut self) {
+    fn decr_primary_column_width(&mut self) {
         if self.primary_column_pct >= 20 {
             self.primary_column_pct -= 10;
         }
