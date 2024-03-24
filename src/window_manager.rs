@@ -1,4 +1,4 @@
-use std::{ffi::c_void, time::Duration};
+use std::ffi::c_void;
 
 use accessibility::{AXUIElement, AXUIElementAttributes};
 use accessibility_sys::kAXWindowRole;
@@ -264,18 +264,17 @@ impl WindowManager {
     }
 
     pub fn cascade_windows(&self) -> Result<()> {
-        for (i, w) in self.windows.iter().enumerate() {
+        for (i, w) in self.windows.iter().rev().enumerate() {
             let d = w.display()?.bounds();
             let rect = CGRect::new(
                 &CGPoint::new(
                     d.origin.x + i as f64 * 32.,
-                    d.origin.y + 32. + i as f64 * 32.,
+                    d.origin.y + 38. + i as f64 * 32.,
                 ),
                 &CGSize::new(d.size.width * 2. / 3., d.size.height * 2. / 3.),
             );
             w.set_frame(rect)
                 .unwrap_or_else(|e| eprintln!("Could not set_frame on window {:?}: {:?}", w, e));
-            std::thread::sleep(Duration::from_millis(200));
         }
         Ok(())
     }
