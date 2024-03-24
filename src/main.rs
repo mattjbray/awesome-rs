@@ -109,10 +109,27 @@ fn mk_event_tap_callback(
                         CGEventTapCallbackResult::Drop
                     }
 
+                    AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY
+                        if s.is_normal_mode()
+                            && event
+                                .get_flags()
+                                .contains(CGEventFlags::CGEventFlagAlternate) =>
+                    {
+                        match s.layout() {
+                            Layout::TileHorizontal(_) => {
+                                s.incr_primary_column_max_windows();
+                                s.relayout()
+                                    .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
+                            }
+                            _ => ()
+                        }
+                        CGEventTapCallbackResult::Drop
+                    }
+
                     AWESOME_NORMAL_MODE_WINDOW_LEFT_KEY if s.is_normal_mode() => {
                         match s.layout() {
                             Layout::TileHorizontal(_) => {
-                                s.incr_max_primary_column_windows();
+                                s.decr_primary_column_width();
                                 s.relayout()
                                     .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
                             }
@@ -125,10 +142,27 @@ fn mk_event_tap_callback(
                         CGEventTapCallbackResult::Drop
                     }
 
+                    AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY
+                        if s.is_normal_mode()
+                        && event
+                        .get_flags()
+                        .contains(CGEventFlags::CGEventFlagAlternate) =>
+                    {
+                        match s.layout() {
+                            Layout::TileHorizontal(_) => {
+                                s.decr_primary_column_max_windows();
+                                s.relayout()
+                                    .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
+                            }
+                            _ => ()
+                        }
+                        CGEventTapCallbackResult::Drop
+                    }
+
                     AWESOME_NORMAL_MODE_WINDOW_RIGHT_KEY if s.is_normal_mode() => {
                         match s.layout() {
                             Layout::TileHorizontal(_) => {
-                                s.decr_max_primary_column_windows();
+                                s.incr_primary_column_width();
                                 s.relayout()
                                     .unwrap_or_else(|e| eprintln!("In relayout: {}", e));
                             }

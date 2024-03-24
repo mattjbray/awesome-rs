@@ -7,6 +7,7 @@ use crate::{window::WindowWrapper, Window};
 #[derive(Debug)]
 pub struct TileHorizontalOpts {
     pub max_num_left: i32,
+    pub primary_column_pct: u8,
 }
 
 #[derive(Debug)]
@@ -25,8 +26,11 @@ impl Layout {
     pub fn cascade() -> Self {
         Self::Cascade
     }
-    pub fn tile_horizontal(max_num_left: i32) -> Self {
-        Self::TileHorizontal(TileHorizontalOpts { max_num_left })
+    pub fn tile_horizontal(max_num_left: i32, primary_column_width_pct: u8) -> Self {
+        Self::TileHorizontal(TileHorizontalOpts {
+            max_num_left,
+            primary_column_pct: primary_column_width_pct,
+        })
     }
 
     pub fn apply(&self, windows: &Windows) -> Result<()> {
@@ -71,18 +75,18 @@ impl Layout {
 
         // Left column
 
-        let width = if num_right == 0 {
+        let left_width = if num_right == 0 {
             d.size.width
         } else {
-            d.size.width / 2.
+            d.size.width * (opts.primary_column_pct as f64 / 100.)
         };
 
-        let height = (d.size.height - 38.) / num_left as f64;
+        let left_height = (d.size.height - 38.) / num_left as f64;
 
         for (i, w) in windows.iter().take(num_left as usize).enumerate() {
             let rect = CGRect::new(
-                &CGPoint::new(d.origin.x, d.origin.y + 38. + i as f64 * height),
-                &CGSize::new(width, height),
+                &CGPoint::new(d.origin.x, d.origin.y + 38. + i as f64 * left_height),
+                &CGSize::new(left_width, left_height),
             );
             w.set_frame(rect)
                 .unwrap_or_else(|e| eprintln!("Could not set_frame on window {:?}: {:?}", w, e));
@@ -94,14 +98,17 @@ impl Layout {
 
         // Right column
 
-        let width = d.size.width / 2.;
+        let right_width = d.size.width * ((100 - opts.primary_column_pct) as f64 / 100.);
 
-        let height = (d.size.height - 38.) / num_right as f64;
+        let right_height = (d.size.height - 38.) / num_right as f64;
 
         for (i, w) in windows.iter().skip(num_left as usize).enumerate() {
             let rect = CGRect::new(
-                &CGPoint::new(d.origin.x + width, d.origin.y + 38. + i as f64 * height),
-                &CGSize::new(width, height),
+                &CGPoint::new(
+                    d.origin.x + left_width,
+                    d.origin.y + 38. + i as f64 * right_height,
+                ),
+                &CGSize::new(right_width, right_height),
             );
             w.set_frame(rect)
                 .unwrap_or_else(|e| eprintln!("Could not set_frame on window {:?}: {:?}", w, e));
