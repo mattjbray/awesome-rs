@@ -25,7 +25,7 @@ use crate::{
     CGErrorWrapper,
 };
 
-fn get_window_pids(on_screen_only: bool) -> Result<Vec<i64>>  {
+fn get_window_pids(on_screen_only: bool) -> Result<Vec<i64>> {
     let opts = kCGWindowListExcludeDesktopElements;
     let opts = if on_screen_only {
         opts | kCGWindowListOptionOnScreenOnly
@@ -51,7 +51,8 @@ fn get_window_pids(on_screen_only: bool) -> Result<Vec<i64>>  {
             let pid = d.get(k.to_void());
             let pid = unsafe { CFNumber::from_void(*pid) };
             pid.to_i64()
-        }).collect::<Vec<i64>>();
+        })
+        .collect::<Vec<i64>>();
     Ok(iter)
 }
 
@@ -135,10 +136,7 @@ impl WindowManager {
         }
     }
 
-    pub fn refresh_window_list(&mut self) -> Result<()> {
-        let (open_windows, minimized_windows) = get_all_windows()?;
-        self.open_windows = open_windows;
-        self.minimized_windows = minimized_windows;
+    fn refresh_active_window(&mut self) {
         self.active_window_idx = self
             .open_windows
             .iter()
@@ -146,6 +144,13 @@ impl WindowManager {
         if self.active_window_idx.is_none() {
             eprintln!("No active window!");
         }
+    }
+
+    pub fn refresh_window_list(&mut self) -> Result<()> {
+        let (open_windows, minimized_windows) = get_all_windows()?;
+        self.open_windows = open_windows;
+        self.minimized_windows = minimized_windows;
+        self.refresh_active_window();
         Ok(())
     }
 
@@ -405,6 +410,7 @@ impl WindowManager {
             RefreshWindowList => self.refresh_window_list(),
             ModeNormal => {
                 self.set_mode(Mode::Normal);
+                self.refresh_active_window();
                 Ok(())
             }
             ModeInsert => {
