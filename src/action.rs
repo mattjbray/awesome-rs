@@ -52,36 +52,37 @@ impl Action {
                     .intersection(FLG_CTRL | FLG_ALT | FLG_SHIFT | FLG_CMD);
                 let keycode = event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE);
                 println!("KeyDown ({:?}) {}", mode, keycode);
+                use Action::*;
                 match (mode, flags, keycode, layout) {
                     (Mode::Insert, _, KEYCODE_A, _) if flags == FLG_CTRL | FLG_CMD => {
-                        Some(Action::ModeNormal)
+                        Some(ModeNormal)
                     }
-                    (Mode::Normal, FLG_NULL, KEYCODE_C, _) => Some(Action::LayoutCascade),
-                    (Mode::Normal, FLG_NULL, KEYCODE_F, _) => Some(Action::LayoutFloating),
+                    (Mode::Normal, FLG_NULL, KEYCODE_C, _) => Some(LayoutCascade),
+                    (Mode::Normal, FLG_NULL, KEYCODE_F, _) => Some(LayoutFloating),
                     (Mode::Normal, FLG_ALT, KEYCODE_H, Layout::TileHorizontal(_)) => {
-                        Some(Action::IncrPrimaryColWindows)
+                        Some(IncrPrimaryColWindows)
                     }
                     (Mode::Normal, FLG_ALT, KEYCODE_L, Layout::TileHorizontal(_)) => {
-                        Some(Action::DecrPrimaryColWindows)
+                        Some(DecrPrimaryColWindows)
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_H, Layout::TileHorizontal(_)) => {
-                        Some(Action::DecrPrimaryColWidth)
+                        Some(DecrPrimaryColWidth)
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_L, Layout::TileHorizontal(_)) => {
-                        Some(Action::IncrPrimaryColWidth)
+                        Some(IncrPrimaryColWidth)
                     }
-                    (Mode::Normal, FLG_NULL, KEYCODE_H, _) => Some(Action::WindowLeftHalf),
-                    (Mode::Normal, FLG_NULL, KEYCODE_L, _) => Some(Action::WindowRightHalf),
-                    (Mode::Normal, FLG_NULL, KEYCODE_M, _) => Some(Action::WindowMinimize),
-                    (Mode::Normal, FLG_SHIFT, KEYCODE_M, _) => Some(Action::WindowRestore),
-                    (Mode::Normal, FLG_NULL, KEYCODE_R, _) => Some(Action::RefreshWindowList),
-                    (Mode::Normal, FLG_NULL, KEYCODE_T, _) => Some(Action::LayoutTiling),
-                    (Mode::Normal, FLG_ALT, KEYCODE_J, _) => Some(Action::SwapNextWindow),
-                    (Mode::Normal, FLG_ALT, KEYCODE_K, _) => Some(Action::SwapPrevWindow),
-                    (Mode::Normal, FLG_NULL, KEYCODE_J, _) => Some(Action::NextWindow),
-                    (Mode::Normal, FLG_NULL, KEYCODE_K, _) => Some(Action::PrevWindow),
-                    (Mode::Normal, FLG_NULL, KEYCODE_ENT, _) => Some(Action::WindowFull),
-                    (Mode::Normal, _, _, _) => Some(Action::ModeInsert),
+                    (Mode::Normal, FLG_NULL, KEYCODE_H, _) => Some(WindowLeftHalf),
+                    (Mode::Normal, FLG_NULL, KEYCODE_L, _) => Some(WindowRightHalf),
+                    (Mode::Normal, FLG_NULL, KEYCODE_M, _) => Some(WindowMinimize),
+                    (Mode::Normal, FLG_SHIFT, KEYCODE_M, _) => Some(WindowRestore),
+                    (Mode::Normal, FLG_NULL, KEYCODE_R, _) => Some(RefreshWindowList),
+                    (Mode::Normal, FLG_NULL, KEYCODE_T, _) => Some(LayoutTiling),
+                    (Mode::Normal, FLG_ALT, KEYCODE_J, _) => Some(SwapNextWindow),
+                    (Mode::Normal, FLG_ALT, KEYCODE_K, _) => Some(SwapPrevWindow),
+                    (Mode::Normal, FLG_NULL, KEYCODE_J, _) => Some(NextWindow),
+                    (Mode::Normal, FLG_NULL, KEYCODE_K, _) => Some(PrevWindow),
+                    (Mode::Normal, FLG_NULL, KEYCODE_ENT, _) => Some(WindowFull),
+                    (Mode::Normal, _, _, _) => Some(ModeInsert),
                     _ => None,
                 }
             }
