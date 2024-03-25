@@ -26,6 +26,7 @@ pub enum Action {
 }
 
 const KEYCODE_A: i64 = 0;
+const KEYCODE_C: i64 = 8;
 const KEYCODE_F: i64 = 3;
 const KEYCODE_H: i64 = 4;
 const KEYCODE_J: i64 = 38;
@@ -55,7 +56,7 @@ impl Action {
                     (Mode::Insert, _, KEYCODE_A, _) if flags == FLG_CTRL | FLG_CMD => {
                         Some(Action::ModeNormal)
                     }
-                    (Mode::Normal, FLG_NULL, KEYCODE_A, _) => Some(Action::LayoutCascade),
+                    (Mode::Normal, FLG_NULL, KEYCODE_C, _) => Some(Action::LayoutCascade),
                     (Mode::Normal, FLG_NULL, KEYCODE_F, _) => Some(Action::LayoutFloating),
                     (Mode::Normal, FLG_ALT, KEYCODE_H, Layout::TileHorizontal(_)) => {
                         Some(Action::IncrPrimaryColWindows)
