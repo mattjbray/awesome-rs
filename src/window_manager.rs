@@ -410,7 +410,7 @@ impl WindowManager {
             RefreshWindowList => self.refresh_window_list(),
             ModeNormal => {
                 self.set_mode(Mode::Normal);
-                self.refresh_active_window();
+                self.refresh_window_list()?;
                 Ok(())
             }
             ModeInsert => {
