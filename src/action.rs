@@ -54,7 +54,7 @@ impl Action {
                 println!("KeyDown ({:?}) {}", mode, keycode);
                 use Action::*;
                 match (mode, flags, keycode, layout) {
-                    (Mode::Insert, _, KEYCODE_A, _) if flags == FLG_CTRL | FLG_CMD => {
+                    (Mode::Insert, _, KEYCODE_A, _) if flags == FLG_SHIFT | FLG_CMD => {
                         Some(ModeNormal)
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_C, _) => Some(LayoutCascade),
