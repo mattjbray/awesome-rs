@@ -198,23 +198,31 @@ impl WindowManager {
     }
 
     fn _next_window_idx(&mut self) -> Option<usize> {
-        self.active_window_idx.map(|idx| {
-            if idx >= self.open_windows.len() - 1 {
-                0
-            } else {
-                idx + 1
+        match self.active_window_idx {
+            Some(idx) => {
+                if idx >= self.open_windows.len() - 1 {
+                    Some(0)
+                } else {
+                    Some(idx + 1)
+                }
             }
-        })
+            None if self.open_windows.len() > 0 => Some(0),
+            None => None,
+        }
     }
 
     fn _prev_window_idx(&mut self) -> Option<usize> {
-        self.active_window_idx.map(|idx| {
-            if idx == 0 {
-                self.open_windows.len() - 1
-            } else {
-                idx - 1
+        match self.active_window_idx {
+            Some(idx) => {
+                if idx == 0 {
+                    Some(self.open_windows.len() - 1)
+                } else {
+                    Some(idx - 1)
+                }
             }
-        })
+            None if self.open_windows.len() > 0 => Some(0),
+            None => None,
+        }
     }
 
     fn next_window_idx(&mut self) -> Option<usize> {
