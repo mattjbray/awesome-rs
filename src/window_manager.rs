@@ -198,17 +198,9 @@ impl DisplayState {
         }
     }
 
-    fn get_active_window(&self) -> Result<Option<&WindowWrapper<AXUIElement>>> {
-        match self.active_window_idx {
-            Some(idx) => {
-                let window = self
-                    .open_windows
-                    .get(idx)
-                    .ok_or(accessibility::Error::NotFound)?;
-                Ok(Some(window))
-            }
-            None => Ok(None),
-        }
+    fn get_active_window(&self) -> Option<&WindowWrapper<AXUIElement>> {
+        self.active_window_idx
+            .map(|idx| self.open_windows.get(idx).unwrap())
     }
 
     fn swap_window_prev(&mut self) {
@@ -232,7 +224,7 @@ impl DisplayState {
     }
 
     fn close_active_window(&mut self) -> Result<()> {
-        if let Some(window) = self.get_active_window()? {
+        if let Some(window) = self.get_active_window() {
             window.close()?;
             let idx = self.active_window_idx.unwrap();
             let _w = self.open_windows.remove(idx);
@@ -400,17 +392,15 @@ impl WindowManager {
         })
     }
 
-    fn get_active_window(&self) -> Result<Option<&WindowWrapper<AXUIElement>>> {
-        match self.get_active_display() {
-            Some(ds) => ds.get_active_window(),
-            None => Ok(None),
-        }
+    fn get_active_window(&self) -> Option<&WindowWrapper<AXUIElement>> {
+        self.get_active_display()
+            .and_then(|ds| ds.get_active_window())
     }
 
     /// Create a window slightly larger than and behind the active window.
     fn highlight_active_window(&mut self) -> Result<()> {
         self.remove_highlight_window();
-        match self.get_active_window()? {
+        match self.get_active_window() {
             Some(w) => {
                 let f = w.frame()?;
                 let outset = 7.;
@@ -450,7 +440,7 @@ impl WindowManager {
     }
 
     fn activate_active_window(&self) -> Result<()> {
-        if let Some(w) = self.get_active_window()? {
+        if let Some(w) = self.get_active_window() {
             eprintln!("Activate window {:?}", w);
             w.activate()
         } else {
@@ -521,7 +511,7 @@ impl WindowManager {
     }
 
     fn set_active_window_full(&self) -> Result<()> {
-        if let Some(window) = self.get_active_window()? {
+        if let Some(window) = self.get_active_window() {
             let display = window.display()?;
             window.set_frame(display.bounds())?;
         }
@@ -529,7 +519,7 @@ impl WindowManager {
     }
 
     fn set_active_window_left(&self) -> Result<()> {
-        if let Some(window) = self.get_active_window()? {
+        if let Some(window) = self.get_active_window() {
             let d = window.display()?.bounds();
             let w = window.frame()?;
             if d.origin.x > 0. && w.origin.x == d.origin.x && w.size.width == d.size.width / 2. {
@@ -556,7 +546,7 @@ impl WindowManager {
     }
 
     fn set_active_window_right(&self) -> Result<()> {
-        if let Some(window) = self.get_active_window()? {
+        if let Some(window) = self.get_active_window() {
             let d = window.display()?.bounds();
             let w = window.frame()?;
             if w.origin.x == d.origin.x + d.size.width / 2. && w.size.width == d.size.width / 2. {
@@ -581,7 +571,7 @@ impl WindowManager {
     }
 
     fn minimize_active_window(&mut self) -> Result<()> {
-        if let Some(window) = self.get_active_window()? {
+        if let Some(window) = self.get_active_window() {
             window.set_minimized(true)?;
             let ds = self.get_active_display_mut().unwrap();
             let idx = ds.active_window_idx.unwrap();
