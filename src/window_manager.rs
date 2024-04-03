@@ -484,54 +484,96 @@ impl WindowManager {
             }
             LayoutFloating => {
                 self.set_layout_floating();
-                self.relayout()
+                self.relayout()?;
+                self.highlight_active_window()?;
+                Ok(())
             }
             LayoutCascade => {
                 self.set_layout_cascade();
-                self.relayout()
+                self.relayout()?;
+                self.highlight_active_window()?;
+                Ok(())
             }
             LayoutTiling => {
                 self.set_layout_tile_horizontal();
-                self.relayout()
+                self.relayout()?;
+                self.highlight_active_window()?;
+                Ok(())
             }
-            WindowFull => self.set_active_window_full(),
-            WindowLeftHalf => self.set_active_window_left(),
-            WindowRightHalf => self.set_active_window_right(),
+            WindowFull => {
+                self.set_active_window_full()?;
+                self.highlight_active_window()?;
+                Ok(())
+            }
+            WindowLeftHalf => {
+                self.set_active_window_left()?;
+                self.highlight_active_window()?;
+                Ok(())
+            }
+            WindowRightHalf => {
+                self.set_active_window_right()?;
+                self.highlight_active_window()?;
+                Ok(())
+            }
             WindowMinimize => {
                 self.minimize_active_window()?;
                 self.activate_active_window()?;
-                self.relayout()
+                self.relayout()?;
+                self.highlight_active_window()?;
+                Ok(())
             }
             WindowRestore => {
                 self.unminimize_window()?;
                 self.activate_active_window()?;
-                self.relayout()
+                self.relayout()?;
+                self.highlight_active_window()?;
+                Ok(())
             }
-            NextWindow => self.next_window(),
-            PrevWindow => self.prev_window(),
+            NextWindow => {
+                self.next_window()?;
+                self.highlight_active_window()?;
+                Ok(())
+            }
+            PrevWindow => {
+                self.prev_window()?;
+                self.highlight_active_window()?;
+                Ok(())
+            }
             SwapNextWindow => {
                 self.swap_window_next();
-                self.relayout()
+                self.relayout()?;
+                self.highlight_active_window()?;
+                Ok(())
             }
             SwapPrevWindow => {
                 self.swap_window_prev();
-                self.relayout()
+                self.relayout()?;
+                self.highlight_active_window()?;
+                Ok(())
             }
             IncrPrimaryColWidth => {
                 self.incr_primary_column_width();
-                self.relayout()
+                self.relayout()?;
+                self.highlight_active_window()?;
+                Ok(())
             }
             DecrPrimaryColWidth => {
                 self.decr_primary_column_width();
-                self.relayout()
+                self.relayout()?;
+                self.highlight_active_window()?;
+                Ok(())
             }
             IncrPrimaryColWindows => {
                 self.incr_primary_column_max_windows();
-                self.relayout()
+                self.relayout()?;
+                self.highlight_active_window()?;
+                Ok(())
             }
             DecrPrimaryColWindows => {
                 self.decr_primary_column_max_windows();
-                self.relayout()
+                self.relayout()?;
+                self.highlight_active_window()?;
+                Ok(())
             }
         }
     }
