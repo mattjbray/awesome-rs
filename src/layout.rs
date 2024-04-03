@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use accessibility::AXUIElement;
 use anyhow::Result;
 use core_graphics::display::{CGPoint, CGRect, CGSize};
@@ -19,6 +21,8 @@ pub enum Layout {
 
 type Windows = Vec<WindowWrapper<AXUIElement>>;
 
+type WindowsByDisplayID = HashMap<u32, Windows>;
+
 impl Layout {
     pub fn floating() -> Self {
         Self::Floating
@@ -33,7 +37,7 @@ impl Layout {
         })
     }
 
-    pub fn apply(&self, windows: &Windows) -> Result<()> {
+    pub fn apply(&self, windows: &WindowsByDisplayID) -> Result<()> {
         match self {
             Layout::Floating => Ok(()),
             Layout::Cascade => self.apply_cascade(windows),
@@ -41,7 +45,7 @@ impl Layout {
         }
     }
 
-    fn apply_cascade(&self, windows: &Windows) -> Result<()> {
+    fn apply_cascade_(&self, windows: &Windows) -> Result<()> {
         for (i, w) in windows.iter().rev().enumerate() {
             let d = w.display()?.bounds();
             let rect = CGRect::new(
@@ -57,7 +61,14 @@ impl Layout {
         Ok(())
     }
 
-    fn apply_tile_horizontal(&self, windows: &Windows, opts: &TileHorizontalOpts) -> Result<()> {
+    fn apply_cascade(&self, windows: &WindowsByDisplayID) -> Result<()> {
+        for (_display_id, ws) in windows.iter() {
+            self.apply_cascade_(ws)?;
+        }
+        Ok(())
+    }
+
+    fn apply_tile_horizontal_(&self, windows: &Windows, opts: &TileHorizontalOpts) -> Result<()> {
         let num_windows = windows.len() as i32;
 
         if num_windows == 0 {
@@ -115,6 +126,17 @@ impl Layout {
                 .unwrap_or_else(|e| eprintln!("Could not set_frame on window {:?}: {:?}", w, e));
         }
 
+        Ok(())
+    }
+
+    fn apply_tile_horizontal(
+        &self,
+        windows: &WindowsByDisplayID,
+        opts: &TileHorizontalOpts,
+    ) -> Result<()> {
+        for (_display_id, ws) in windows.iter() {
+            self.apply_tile_horizontal_(ws, opts)?;
+        }
         Ok(())
     }
 }

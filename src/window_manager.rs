@@ -1,4 +1,4 @@
-use std::ffi::c_void;
+use std::{collections::HashMap, ffi::c_void};
 
 use accessibility::{AXUIElement, AXUIElementAttributes};
 use accessibility_sys::kAXWindowRole;
@@ -120,8 +120,8 @@ pub struct WindowManager {
     drag_window: Option<DragWindow>,
     mode: Mode,
     layout: Layout,
-    active_window_idx: Option<usize>,
-    open_windows: Vec<WindowWrapper<AXUIElement>>,
+    active_window_idx: Option<(u32, usize)>,
+    open_windows: HashMap<u32, Vec<WindowWrapper<AXUIElement>>>,
     minimized_windows: Vec<WindowWrapper<AXUIElement>>,
     primary_column_max_windows: i32,
     primary_column_pct: u8,
@@ -135,7 +135,7 @@ impl WindowManager {
             mode: Mode::Normal,
             layout: Layout::Floating,
             active_window_idx: None,
-            open_windows: vec![],
+            open_windows: HashMap::new(),
             minimized_windows: vec![],
             primary_column_max_windows: 1,
             primary_column_pct: 50,
@@ -144,18 +144,33 @@ impl WindowManager {
     }
 
     fn refresh_active_window(&mut self) {
-        self.active_window_idx = self
-            .open_windows
-            .iter()
-            .position(|w| w.frontmost_and_main().unwrap_or(false));
+        self.active_window_idx = self.open_windows.iter().find_map(|(display_id, ws)| {
+            ws.iter()
+                .position(|w| w.frontmost_and_main().unwrap_or(false))
+                .map(|idx| (*display_id, idx))
+        });
         if self.active_window_idx.is_none() {
             eprintln!("No active window!");
         }
     }
 
+    fn insert_open_window(&mut self, window: WindowWrapper<AXUIElement>) -> Result<()> {
+        let display_id = window.display()?.id;
+        match self.open_windows.get_mut(&display_id) {
+            Some(ws) => ws.insert(0, window),
+            None => {
+                self.open_windows.insert(display_id, vec![window]);
+            }
+        }
+        Ok(())
+    }
+
     pub fn refresh_window_list(&mut self) -> Result<()> {
         let (open_windows, minimized_windows) = get_all_windows()?;
-        self.open_windows = open_windows;
+        self.open_windows.clear();
+        for w in open_windows {
+            self.insert_open_window(w)?;
+        }
         self.minimized_windows = minimized_windows;
         self.refresh_active_window();
         Ok(())
@@ -185,9 +200,11 @@ impl WindowManager {
     fn get_active_window(&self) -> Result<Option<&WindowWrapper<AXUIElement>>> {
         match self.active_window_idx {
             None => Ok(None),
-            Some(idx) => {
+            Some((display_id, idx)) => {
                 let window = self
                     .open_windows
+                    .get(&display_id)
+                    .ok_or(accessibility::Error::NotFound)?
                     .get(idx)
                     .ok_or(accessibility::Error::NotFound)?;
                 Ok(Some(window))
@@ -245,42 +262,54 @@ impl WindowManager {
         }
     }
 
-    fn _next_window_idx(&mut self) -> Option<usize> {
+    fn _next_window_idx(&mut self) -> Option<(u32, usize)> {
         match self.active_window_idx {
-            Some(idx) => {
-                if idx >= self.open_windows.len() - 1 {
-                    Some(0)
+            Some((display_id, idx)) => {
+                let num_windows = self.open_windows.get(&display_id).map_or(0, |ws| ws.len());
+                if idx >= num_windows - 1 {
+                    Some((display_id, 0))
                 } else {
-                    Some(idx + 1)
+                    Some((display_id, idx + 1))
                 }
             }
-            None if self.open_windows.len() > 0 => Some(0),
-            None => None,
+            None => self.open_windows.iter().find_map(|(display_id, ws)| {
+                if ws.len() > 0 {
+                    Some((*display_id, 0))
+                } else {
+                    None
+                }
+            }),
         }
     }
 
-    fn _prev_window_idx(&mut self) -> Option<usize> {
+    fn _prev_window_idx(&mut self) -> Option<(u32, usize)> {
         match self.active_window_idx {
-            Some(idx) => {
+            Some((display_id, idx)) => {
+                let num_windows = self.open_windows.get(&display_id).map_or(0, |ws| ws.len());
                 if idx == 0 {
-                    Some(self.open_windows.len() - 1)
+                    Some((display_id, num_windows - 1))
                 } else {
-                    Some(idx - 1)
+                    Some((display_id, idx - 1))
                 }
             }
-            None if self.open_windows.len() > 0 => Some(0),
-            None => None,
+            None => self.open_windows.iter().find_map(|(display_id, ws)| {
+                if ws.len() > 0 {
+                    Some((*display_id, 0))
+                } else {
+                    None
+                }
+            }),
         }
     }
 
-    fn next_window_idx(&mut self) -> Option<usize> {
+    fn next_window_idx(&mut self) -> Option<(u32, usize)> {
         match self.layout {
             Layout::TileHorizontal(_) => self._next_window_idx(),
             _ => self._prev_window_idx(),
         }
     }
 
-    fn prev_window_idx(&mut self) -> Option<usize> {
+    fn prev_window_idx(&mut self) -> Option<(u32, usize)> {
         match self.layout {
             Layout::TileHorizontal(_) => self._prev_window_idx(),
             _ => self._next_window_idx(),
@@ -299,9 +328,12 @@ impl WindowManager {
 
     fn swap_window_prev(&mut self) {
         match (self.active_window_idx, self.prev_window_idx()) {
-            (Some(idx), Some(prev_idx)) => {
-                self.open_windows.swap(idx, prev_idx);
-                self.active_window_idx = Some(prev_idx);
+            (Some((display_id, idx)), Some((prev_display_id, prev_idx))) => {
+                assert_eq!(display_id, prev_display_id);
+                self.open_windows
+                    .entry(display_id)
+                    .and_modify(|ws| ws.swap(idx, prev_idx));
+                self.active_window_idx = Some((display_id, prev_idx));
             }
             _ => (),
         }
@@ -309,9 +341,12 @@ impl WindowManager {
 
     fn swap_window_next(&mut self) {
         match (self.active_window_idx, self.next_window_idx()) {
-            (Some(idx), Some(next_idx)) => {
-                self.open_windows.swap(idx, next_idx);
-                self.active_window_idx = Some(next_idx);
+            (Some((display_id, idx)), Some((next_display_id, next_idx))) => {
+                assert_eq!(display_id, next_display_id);
+                self.open_windows
+                    .entry(display_id)
+                    .and_modify(|ws| ws.swap(idx, next_idx));
+                self.active_window_idx = Some((display_id, next_idx));
             }
             _ => (),
         }
@@ -380,14 +415,17 @@ impl WindowManager {
     fn minimize_active_window(&mut self) -> Result<()> {
         if let Some(window) = self.get_active_window()? {
             window.set_minimized(true)?;
-            let idx = self.active_window_idx.unwrap();
-            let w = self.open_windows.remove(idx);
+            let (display_id, idx) = self.active_window_idx.unwrap();
+            let ws = self.open_windows.get_mut(&display_id).unwrap();
+            let w = ws.remove(idx);
             self.minimized_windows.push(w);
-            self.active_window_idx = if self.open_windows.len() == 0 {
+
+            self.active_window_idx = if ws.len() == 0 {
                 None
             } else {
-                Some(usize::min(idx, self.open_windows.len() - 1))
+                Some((display_id, usize::min(idx, ws.len() - 1)))
             };
+
             Ok(())
         } else {
             Ok(())
@@ -397,8 +435,9 @@ impl WindowManager {
     fn unminimize_window(&mut self) -> Result<()> {
         if let Some(window) = self.minimized_windows.pop() {
             window.set_minimized(false)?;
-            self.open_windows.insert(0, window);
-            self.active_window_idx = Some(0);
+            let display_id = window.display()?.id;
+            self.insert_open_window(window)?;
+            self.active_window_idx = Some((display_id, 0));
             Ok(())
         } else {
             Ok(())
