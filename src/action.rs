@@ -6,7 +6,7 @@ use crate::{mode::Mode, Layout};
 pub enum Action {
     ModeNormal,
     ModeInsert,
-    RefreshWindowList,
+    RelayoutAll,
     LayoutFloating,
     LayoutCascade,
     LayoutTiling,
@@ -24,6 +24,8 @@ pub enum Action {
     DecrPrimaryColWidth,
     IncrPrimaryColWindows,
     DecrPrimaryColWindows,
+    NextDisplay,
+    PrevDisplay,
 }
 
 const KEYCODE_A: i64 = 0;
@@ -34,6 +36,8 @@ const KEYCODE_J: i64 = 38;
 const KEYCODE_K: i64 = 40;
 const KEYCODE_L: i64 = 37;
 const KEYCODE_M: i64 = 46;
+const KEYCODE_N: i64 = 45;
+const KEYCODE_P: i64 = 35;
 const KEYCODE_R: i64 = 15;
 const KEYCODE_T: i64 = 17;
 const KEYCODE_X: i64 = 7;
@@ -77,7 +81,7 @@ impl Action {
                     (Mode::Normal, FLG_NULL, KEYCODE_L, _) => Some(WindowRightHalf),
                     (Mode::Normal, FLG_NULL, KEYCODE_M, _) => Some(WindowMinimize),
                     (Mode::Normal, FLG_SHIFT, KEYCODE_M, _) => Some(WindowRestore),
-                    (Mode::Normal, FLG_NULL, KEYCODE_R, _) => Some(RefreshWindowList),
+                    (Mode::Normal, FLG_NULL, KEYCODE_R, _) => Some(RelayoutAll),
                     (Mode::Normal, FLG_NULL, KEYCODE_T, _) => Some(LayoutTiling),
                     (Mode::Normal, FLG_ALT, KEYCODE_J, _) => Some(SwapNextWindow),
                     (Mode::Normal, FLG_ALT, KEYCODE_K, _) => Some(SwapPrevWindow),
@@ -85,6 +89,8 @@ impl Action {
                     (Mode::Normal, FLG_NULL, KEYCODE_K, _) => Some(PrevWindow),
                     (Mode::Normal, FLG_NULL, KEYCODE_ENT, _) => Some(WindowFull),
                     (Mode::Normal, FLG_NULL, KEYCODE_X, _) => Some(WindowClose),
+                    (Mode::Normal, FLG_NULL, KEYCODE_N, _) => Some(NextDisplay),
+                    (Mode::Normal, FLG_NULL, KEYCODE_P, _) => Some(PrevDisplay),
                     (Mode::Normal, _, _, _) => Some(ModeInsert),
                     _ => None,
                 }

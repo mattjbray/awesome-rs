@@ -131,15 +131,183 @@ fn position_to_origin(w: &WindowWrapper<AXUIElement>) -> Result<NSPoint> {
 type DisplayID = u32;
 
 #[derive(Debug)]
+pub struct DisplayState {
+    display_id: DisplayID,
+    layout: Layout,
+    active_window_idx: Option<usize>,
+    open_windows: Vec<WindowWrapper<AXUIElement>>,
+    primary_column_max_windows: i32,
+    primary_column_pct: u8,
+}
+
+impl DisplayState {
+    fn new(display_id: DisplayID, window: WindowWrapper<AXUIElement>) -> Self {
+        Self {
+            display_id,
+            layout: Layout::floating(),
+            active_window_idx: Some(0),
+            open_windows: vec![window],
+            primary_column_max_windows: 1,
+            primary_column_pct: 50,
+        }
+    }
+
+    fn _next_window_idx(&self) -> Option<usize> {
+        let num_windows = self.open_windows.len();
+
+        match self.active_window_idx {
+            Some(idx) => {
+                if idx >= num_windows - 1 {
+                    Some(0)
+                } else {
+                    Some(idx + 1)
+                }
+            }
+            None if num_windows > 0 => Some(0),
+            None => None,
+        }
+    }
+
+    fn _prev_window_idx(&self) -> Option<usize> {
+        let num_windows = self.open_windows.len();
+
+        match self.active_window_idx {
+            Some(idx) => {
+                if idx == 0 {
+                    Some(num_windows - 1)
+                } else {
+                    Some(idx - 1)
+                }
+            }
+            None if num_windows > 0 => Some(0),
+            None => None,
+        }
+    }
+
+    fn next_window_idx(&self) -> Option<usize> {
+        match self.layout {
+            Layout::TileHorizontal(_) => self._next_window_idx(),
+            _ => self._prev_window_idx(),
+        }
+    }
+
+    fn prev_window_idx(&self) -> Option<usize> {
+        match self.layout {
+            Layout::TileHorizontal(_) => self._prev_window_idx(),
+            _ => self._next_window_idx(),
+        }
+    }
+
+    fn get_active_window(&self) -> Result<Option<&WindowWrapper<AXUIElement>>> {
+        match self.active_window_idx {
+            Some(idx) => {
+                let window = self
+                    .open_windows
+                    .get(idx)
+                    .ok_or(accessibility::Error::NotFound)?;
+                Ok(Some(window))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn swap_window_prev(&mut self) {
+        match (self.active_window_idx, self.prev_window_idx()) {
+            (Some(idx), Some(prev_idx)) => {
+                self.open_windows.swap(idx, prev_idx);
+                self.active_window_idx = Some(prev_idx);
+            }
+            _ => (),
+        }
+    }
+
+    fn swap_window_next(&mut self) {
+        match (self.active_window_idx, self.next_window_idx()) {
+            (Some(idx), Some(next_idx)) => {
+                self.open_windows.swap(idx, next_idx);
+                self.active_window_idx = Some(next_idx);
+            }
+            _ => (),
+        }
+    }
+
+    fn close_active_window(&mut self) -> Result<()> {
+        if let Some(window) = self.get_active_window()? {
+            window.close()?;
+            let idx = self.active_window_idx.unwrap();
+            let _w = self.open_windows.remove(idx);
+
+            self.active_window_idx = if self.open_windows.len() == 0 {
+                None
+            } else {
+                Some(usize::min(idx, self.open_windows.len() - 1))
+            };
+
+            Ok(())
+        } else {
+            Ok(())
+        }
+    }
+
+    fn set_layout(&mut self, layout: Layout) {
+        eprintln!("set_layout: {:?} for display {:?}", layout, self.display_id);
+        self.layout = layout;
+    }
+
+    fn set_layout_floating(&mut self) {
+        self.set_layout(Layout::floating())
+    }
+
+    fn set_layout_cascade(&mut self) {
+        self.set_layout(Layout::cascade())
+    }
+
+    fn set_layout_tile_horizontal(&mut self) {
+        self.set_layout(Layout::tile_horizontal(
+            self.primary_column_max_windows,
+            self.primary_column_pct,
+        ))
+    }
+
+    fn relayout(&self) -> Result<()> {
+        self.layout.apply(&self.open_windows)
+    }
+
+    fn incr_primary_column_max_windows(&mut self) {
+        self.primary_column_max_windows = i32::min(
+            self.primary_column_max_windows + 1,
+            self.open_windows.len() as i32,
+        );
+        self.set_layout_tile_horizontal();
+    }
+
+    fn decr_primary_column_max_windows(&mut self) {
+        self.primary_column_max_windows = i32::max(self.primary_column_max_windows - 1, 1);
+        self.set_layout_tile_horizontal();
+    }
+
+    fn incr_primary_column_width(&mut self) {
+        if self.primary_column_pct <= 80 {
+            self.primary_column_pct += 10;
+        }
+        self.set_layout_tile_horizontal();
+    }
+
+    fn decr_primary_column_width(&mut self) {
+        if self.primary_column_pct >= 20 {
+            self.primary_column_pct -= 10;
+        }
+        self.set_layout_tile_horizontal();
+    }
+}
+
+#[derive(Debug)]
 pub struct WindowManager {
     drag_window: Option<DragWindow>,
     mode: Mode,
-    layouts: HashMap<DisplayID, Layout>,
-    active_window_idx: Option<(DisplayID, usize)>,
-    open_windows: HashMap<DisplayID, Vec<WindowWrapper<AXUIElement>>>,
+    active_display_id: Option<DisplayID>,
+    displays: HashMap<DisplayID, DisplayState>,
     minimized_windows: Vec<WindowWrapper<AXUIElement>>,
-    primary_column_max_windows: i32,
-    primary_column_pct: u8,
     ns_window: Option<id>,
 }
 
@@ -148,33 +316,35 @@ impl WindowManager {
         WindowManager {
             drag_window: None,
             mode: Mode::Normal,
-            layouts: HashMap::new(),
-            active_window_idx: None,
-            open_windows: HashMap::new(),
+            active_display_id: None,
+            displays: HashMap::new(),
             minimized_windows: vec![],
-            primary_column_max_windows: 1,
-            primary_column_pct: 50,
             ns_window: None,
         }
     }
 
     fn refresh_active_window(&mut self) {
-        self.active_window_idx = self.open_windows.iter().find_map(|(display_id, ws)| {
-            ws.iter()
+        self.active_display_id = self.displays.iter_mut().find_map(|(display_id, ds)| {
+            ds.open_windows
+                .iter()
                 .position(|w| w.frontmost_and_main().unwrap_or(false))
-                .map(|idx| (*display_id, idx))
+                .map(|idx| {
+                    ds.active_window_idx = Some(idx);
+                    *display_id
+                })
         });
-        if self.active_window_idx.is_none() {
-            eprintln!("No active window!");
-        }
     }
 
     fn insert_open_window(&mut self, window: WindowWrapper<AXUIElement>) -> Result<()> {
         let display_id = window.display()?.id;
-        match self.open_windows.get_mut(&display_id) {
-            Some(ws) => ws.insert(0, window),
+        match self.displays.get_mut(&display_id) {
+            Some(ds) => {
+                ds.open_windows.insert(0, window);
+                ds.active_window_idx = Some(0)
+            }
             None => {
-                self.open_windows.insert(display_id, vec![window]);
+                self.displays
+                    .insert(display_id, DisplayState::new(display_id, window));
             }
         }
         Ok(())
@@ -182,7 +352,9 @@ impl WindowManager {
 
     pub fn refresh_window_list(&mut self) -> Result<()> {
         let (open_windows, minimized_windows) = get_all_windows()?;
-        self.open_windows.clear();
+        for display in self.displays.values_mut() {
+            display.open_windows.clear();
+        }
         for w in open_windows {
             self.insert_open_window(w)?;
         }
@@ -212,18 +384,26 @@ impl WindowManager {
         println!("Entered {:?} mode", self.mode);
     }
 
+    fn get_active_display(&self) -> Option<&DisplayState> {
+        self.active_display_id.map(|display_id| {
+            self.displays
+                .get(&display_id)
+                .expect("active_display_id not present in displays")
+        })
+    }
+
+    fn get_active_display_mut(&mut self) -> Option<&mut DisplayState> {
+        self.active_display_id.map(|display_id| {
+            self.displays
+                .get_mut(&display_id)
+                .expect("active_display_id not present in displays")
+        })
+    }
+
     fn get_active_window(&self) -> Result<Option<&WindowWrapper<AXUIElement>>> {
-        match self.active_window_idx {
+        match self.get_active_display() {
+            Some(ds) => ds.get_active_window(),
             None => Ok(None),
-            Some((display_id, idx)) => {
-                let window = self
-                    .open_windows
-                    .get(&display_id)
-                    .ok_or(accessibility::Error::NotFound)?
-                    .get(idx)
-                    .ok_or(accessibility::Error::NotFound)?;
-                Ok(Some(window))
-            }
         }
     }
 
@@ -278,93 +458,65 @@ impl WindowManager {
         }
     }
 
-    fn _next_window_idx(&mut self) -> Option<(DisplayID, usize)> {
-        match self.active_window_idx {
-            Some((display_id, idx)) => {
-                let num_windows = self.open_windows.get(&display_id).map_or(0, |ws| ws.len());
-                if idx >= num_windows - 1 {
-                    Some((display_id, 0))
-                } else {
-                    Some((display_id, idx + 1))
-                }
-            }
-            None => self.open_windows.iter().find_map(|(display_id, ws)| {
-                if ws.len() > 0 {
-                    Some((*display_id, 0))
-                } else {
-                    None
-                }
-            }),
-        }
-    }
-
-    fn _prev_window_idx(&mut self) -> Option<(DisplayID, usize)> {
-        match self.active_window_idx {
-            Some((display_id, idx)) => {
-                let num_windows = self.open_windows.get(&display_id).map_or(0, |ws| ws.len());
-                if idx == 0 {
-                    Some((display_id, num_windows - 1))
-                } else {
-                    Some((display_id, idx - 1))
-                }
-            }
-            None => self.open_windows.iter().find_map(|(display_id, ws)| {
-                if ws.len() > 0 {
-                    Some((*display_id, 0))
-                } else {
-                    None
-                }
-            }),
-        }
-    }
-
-    fn next_window_idx(&mut self) -> Option<(DisplayID, usize)> {
-        match self.layout() {
-            Some(Layout::TileHorizontal(_)) => self._next_window_idx(),
-            _ => self._prev_window_idx(),
-        }
-    }
-
-    fn prev_window_idx(&mut self) -> Option<(DisplayID, usize)> {
-        match self.layout() {
-            Some(Layout::TileHorizontal(_)) => self._prev_window_idx(),
-            _ => self._next_window_idx(),
-        }
-    }
-
     fn next_window(&mut self) -> Result<()> {
-        self.active_window_idx = self.next_window_idx();
-        self.activate_active_window()
+        match self.get_active_display_mut() {
+            None => Ok(()),
+            Some(ds) => {
+                ds.active_window_idx = ds.next_window_idx();
+                self.activate_active_window()
+            }
+        }
     }
 
     fn prev_window(&mut self) -> Result<()> {
-        self.active_window_idx = self.prev_window_idx();
-        self.activate_active_window()
+        match self.get_active_display_mut() {
+            None => Ok(()),
+            Some(ds) => {
+                ds.active_window_idx = ds.prev_window_idx();
+                self.activate_active_window()
+            }
+        }
+    }
+
+    fn next_display(&mut self) -> Result<()> {
+        self.active_display_id = match self.active_display_id {
+            None => self.displays.iter().next().and_then(|(display_id, ds)| {
+                if ds.open_windows.len() > 0 {
+                    Some(*display_id)
+                } else {
+                    None
+                }
+            }),
+            Some(display_id) => {
+                let mut iter = self
+                    .displays
+                    .iter()
+                    .skip_while(|(&d_id, _)| d_id != display_id);
+                iter.next();
+                iter.find_map(|(display_id, ds)| {
+                    if ds.open_windows.len() > 0 {
+                        Some(*display_id)
+                    } else {
+                        None
+                    }
+                })
+            }
+        };
+        self.activate_active_window()?;
+        Ok(())
     }
 
     fn swap_window_prev(&mut self) {
-        match (self.active_window_idx, self.prev_window_idx()) {
-            (Some((display_id, idx)), Some((prev_display_id, prev_idx))) => {
-                assert_eq!(display_id, prev_display_id);
-                self.open_windows
-                    .entry(display_id)
-                    .and_modify(|ws| ws.swap(idx, prev_idx));
-                self.active_window_idx = Some((display_id, prev_idx));
-            }
-            _ => (),
+        match self.get_active_display_mut() {
+            Some(ds) => ds.swap_window_prev(),
+            None => (),
         }
     }
 
     fn swap_window_next(&mut self) {
-        match (self.active_window_idx, self.next_window_idx()) {
-            (Some((display_id, idx)), Some((next_display_id, next_idx))) => {
-                assert_eq!(display_id, next_display_id);
-                self.open_windows
-                    .entry(display_id)
-                    .and_modify(|ws| ws.swap(idx, next_idx));
-                self.active_window_idx = Some((display_id, next_idx));
-            }
-            _ => (),
+        match self.get_active_display_mut() {
+            Some(ds) => ds.swap_window_next(),
+            None => (),
         }
     }
 
@@ -431,16 +583,17 @@ impl WindowManager {
     fn minimize_active_window(&mut self) -> Result<()> {
         if let Some(window) = self.get_active_window()? {
             window.set_minimized(true)?;
-            let (display_id, idx) = self.active_window_idx.unwrap();
-            let ws = self.open_windows.get_mut(&display_id).unwrap();
-            let w = ws.remove(idx);
-            self.minimized_windows.push(w);
+            let ds = self.get_active_display_mut().unwrap();
+            let idx = ds.active_window_idx.unwrap();
+            let w = ds.open_windows.remove(idx);
 
-            self.active_window_idx = if ws.len() == 0 {
+            ds.active_window_idx = if ds.open_windows.len() == 0 {
                 None
             } else {
-                Some((display_id, usize::min(idx, ws.len() - 1)))
+                Some(usize::min(idx, ds.open_windows.len() - 1))
             };
+
+            self.minimized_windows.push(w);
 
             Ok(())
         } else {
@@ -451,9 +604,7 @@ impl WindowManager {
     fn unminimize_window(&mut self) -> Result<()> {
         if let Some(window) = self.minimized_windows.pop() {
             window.set_minimized(false)?;
-            let display_id = window.display()?.id;
             self.insert_open_window(window)?;
-            self.active_window_idx = Some((display_id, 0));
             Ok(())
         } else {
             Ok(())
@@ -461,96 +612,82 @@ impl WindowManager {
     }
 
     fn close_active_window(&mut self) -> Result<()> {
-        if let Some(window) = self.get_active_window()? {
-            window.close()?;
-            let (display_id, idx) = self.active_window_idx.unwrap();
-            let ws = self.open_windows.get_mut(&display_id).unwrap();
-            let _w = ws.remove(idx);
+        match self.get_active_display_mut() {
+            Some(ds) => ds.close_active_window(),
+            None => Ok(()),
+        }
+    }
 
-            self.active_window_idx = if ws.len() == 0 {
-                None
-            } else {
-                Some((display_id, usize::min(idx, ws.len() - 1)))
-            };
+    pub fn layout(&self) -> Option<&Layout> {
+        self.get_active_display().map(|ds| &ds.layout)
+    }
 
-            Ok(())
+    fn set_layout_floating(&mut self) {
+        if let Some(ds) = self.get_active_display_mut() {
+            ds.set_layout_floating()
+        }
+    }
+
+    fn set_layout_cascade(&mut self) {
+        if let Some(ds) = self.get_active_display_mut() {
+            ds.set_layout_cascade()
+        }
+    }
+
+    fn set_layout_tile_horizontal(&mut self) {
+        if let Some(ds) = self.get_active_display_mut() {
+            ds.set_layout_tile_horizontal()
+        }
+    }
+
+    fn relayout(&self) -> Result<()> {
+        if let Some(ds) = self.get_active_display() {
+            ds.relayout()
         } else {
             Ok(())
         }
     }
 
-    pub fn layout(&self) -> Option<&Layout> {
-        match self.active_window_idx {
-            Some((display_id, _)) => self.layouts.get(&display_id),
-            None => None,
-        }
-    }
-
-    fn set_layout(&mut self, layout: Layout) {
-        if let Some((display_id, _)) = self.active_window_idx {
-            eprintln!("set_layout: {:?} for display {:?}", layout, display_id);
-            self.layouts.insert(display_id, layout);
-        }
-    }
-
-    fn set_layout_floating(&mut self) {
-        self.set_layout(Layout::floating())
-    }
-
-    fn set_layout_cascade(&mut self) {
-        self.set_layout(Layout::cascade())
-    }
-
-    fn set_layout_tile_horizontal(&mut self) {
-        self.set_layout(Layout::tile_horizontal(
-            self.primary_column_max_windows,
-            self.primary_column_pct,
-        ))
-    }
-
-    fn relayout(&self) -> Result<()> {
-        for (display_id, layout) in self.layouts.iter() {
-            layout.apply(&self.open_windows.get(display_id).unwrap_or(&vec![]))?;
+    fn relayout_all(&self) -> Result<()> {
+        for ds in self.displays.values() {
+            ds.relayout()?;
         }
         Ok(())
     }
 
     fn incr_primary_column_max_windows(&mut self) {
-        match self.active_window_idx {
-            Some((display_id, _)) => {
-                self.primary_column_max_windows = i32::min(
-                    self.primary_column_max_windows + 1,
-                    self.open_windows.get(&display_id).map_or(0, |ws| ws.len()) as i32,
-                );
-                self.set_layout_tile_horizontal();
-            }
-            None => (),
+        if let Some(ds) = self.get_active_display_mut() {
+            ds.incr_primary_column_max_windows()
         }
     }
 
     fn decr_primary_column_max_windows(&mut self) {
-        self.primary_column_max_windows = i32::max(self.primary_column_max_windows - 1, 1);
-        self.set_layout_tile_horizontal();
+        if let Some(ds) = self.get_active_display_mut() {
+            ds.decr_primary_column_max_windows()
+        }
     }
 
     fn incr_primary_column_width(&mut self) {
-        if self.primary_column_pct <= 80 {
-            self.primary_column_pct += 10;
+        if let Some(ds) = self.get_active_display_mut() {
+            ds.incr_primary_column_width()
         }
-        self.set_layout_tile_horizontal();
     }
 
     fn decr_primary_column_width(&mut self) {
-        if self.primary_column_pct >= 20 {
-            self.primary_column_pct -= 10;
+        if let Some(ds) = self.get_active_display_mut() {
+            ds.decr_primary_column_width()
         }
-        self.set_layout_tile_horizontal();
     }
 
     pub fn do_action(&mut self, action: &Action) -> Result<()> {
         use Action::*;
         match action {
-            RefreshWindowList => self.refresh_window_list(),
+            RelayoutAll => {
+                self.refresh_window_list()?;
+                self.relayout_all()?;
+                self.highlight_active_window()?;
+                Ok(())
+            }
             ModeNormal => {
                 self.set_mode(Mode::Normal);
                 self.refresh_window_list()?;
@@ -659,6 +796,16 @@ impl WindowManager {
             DecrPrimaryColWindows => {
                 self.decr_primary_column_max_windows();
                 self.relayout()?;
+                self.highlight_active_window()?;
+                Ok(())
+            }
+            NextDisplay => {
+                self.next_display()?;
+                self.highlight_active_window()?;
+                Ok(())
+            }
+            PrevDisplay => {
+                self.next_display()?; // TODO
                 self.highlight_active_window()?;
                 Ok(())
             }
