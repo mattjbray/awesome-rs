@@ -9,12 +9,15 @@ edition = "2021"
 accessibility = "0.1.6"
 accessibility-sys = "0.1.3"
 anyhow = "1.0.81"
+cocoa = "0.25.0"
 core-foundation = "0.9.4"
 core-graphics = "0.23.1"
 
 [patch.crates-io]
 accessibility = { path = "./vendor/accessibility/accessibility" }
 accessibility-sys = { path = "./vendor/accessibility/accessibility-sys" }
+cocoa = { path = "./vendor/core-foundation-rs/cocoa" }
+cocoa-foundation = { path = "./vendor/core-foundation-rs/cocoa-foundation" }
 core-foundation = { path = "./vendor/core-foundation-rs/core-foundation" }
 core-foundation-sys = { path = "./vendor/core-foundation-rs/core-foundation-sys" }
 core-graphics = { path = "./vendor/core-foundation-rs/core-graphics" }

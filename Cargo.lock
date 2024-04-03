@@ -7,7 +7,7 @@ name = "accessibility"
 version = "0.1.6"
 dependencies = [
  "accessibility-sys",
- "cocoa",
+ "cocoa 0.24.1",
  "core-foundation",
  "core-graphics-types",
  "objc",
@@ -34,6 +34,7 @@ dependencies = [
  "accessibility",
  "accessibility-sys",
  "anyhow",
+ "cocoa 0.25.0",
  "core-foundation",
  "core-graphics 0.23.1",
 ]
@@ -67,10 +68,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "cocoa"
+version = "0.25.0"
+dependencies = [
+ "bitflags",
+ "block",
+ "cocoa-foundation",
+ "core-foundation",
+ "core-graphics 0.23.1",
+ "foreign-types 0.5.0",
+ "libc",
+ "objc",
+]
+
+[[package]]
 name = "cocoa-foundation"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c6234cbb2e4c785b456c0644748b1ac416dd045799740356f8363dfe00c93f7"
 dependencies = [
  "bitflags",
  "block",

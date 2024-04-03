@@ -3,6 +3,11 @@ use std::ffi::c_void;
 
 use accessibility::AXUIElement;
 use awesome_rs::{Action, DragWindow, WindowManager};
+use cocoa::{
+    appkit::{NSApp, NSApplication},
+    base::nil,
+    foundation::NSAutoreleasePool,
+};
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
 use core_graphics::event::{
     CGEvent, CGEventFlags, CGEventTap, CGEventTapCallbackResult, CGEventTapLocation,
@@ -44,7 +49,11 @@ fn main() {
         AXUIElement::application_is_trusted()
     );
 
-    CFRunLoop::run_current();
+    unsafe {
+        let _pool = NSAutoreleasePool::new(nil);
+        let app = NSApp();
+        app.run();
+    }
 }
 
 fn mk_event_tap_callback(

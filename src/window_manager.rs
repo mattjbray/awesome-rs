@@ -3,6 +3,11 @@ use std::ffi::c_void;
 use accessibility::{AXUIElement, AXUIElementAttributes};
 use accessibility_sys::kAXWindowRole;
 use anyhow::{anyhow, Result};
+use cocoa::{
+    appkit::{NSBackingStoreType::NSBackingStoreBuffered, NSWindow, NSWindowStyleMask},
+    base::{id, nil},
+    foundation::{NSPoint, NSRect, NSSize},
+};
 use core_foundation::{
     array::CFArray,
     base::{FromVoid, ItemRef, TCFType, ToVoid},
@@ -120,6 +125,7 @@ pub struct WindowManager {
     minimized_windows: Vec<WindowWrapper<AXUIElement>>,
     primary_column_max_windows: i32,
     primary_column_pct: u8,
+    ns_window: Option<id>,
 }
 
 impl WindowManager {
@@ -133,6 +139,7 @@ impl WindowManager {
             minimized_windows: vec![],
             primary_column_max_windows: 1,
             primary_column_pct: 50,
+            ns_window: None,
         }
     }
 
@@ -185,6 +192,45 @@ impl WindowManager {
                     .ok_or(accessibility::Error::NotFound)?;
                 Ok(Some(window))
             }
+        }
+    }
+
+    fn highlight_active_window(&mut self) -> Result<()> {
+        let w = self.get_active_window()?.unwrap();
+        let f = w.frame()?;
+        let m = CGDisplay::main().bounds();
+
+        let outset = 10.;
+        let x = f.origin.x - outset;
+        let y = m.size.height - f.origin.y - f.size.height - outset;
+        let width = f.size.width + outset * 2.;
+        let height = f.size.height + outset * 2.;
+        let rect = NSRect::new(NSPoint::new(x, y), NSSize::new(width, height));
+
+        unsafe {
+            let window = NSWindow::alloc(nil);
+            window.initWithContentRect_styleMask_backing_defer_(
+                rect,
+                NSWindowStyleMask::empty(),
+                NSBackingStoreBuffered,
+                false,
+            );
+            window.makeKeyAndOrderFront_(nil);
+            self.ns_window = Some(window);
+        }
+        Ok(())
+    }
+
+    fn remove_highlight_window(&mut self) {
+        match self.ns_window {
+            Some(window) => {
+                unsafe {
+                    window.close();
+                    // window.autorelease();
+                };
+                self.ns_window = None;
+            }
+            None => (),
         }
     }
 
@@ -419,10 +465,12 @@ impl WindowManager {
             ModeNormal => {
                 self.set_mode(Mode::Normal);
                 self.refresh_window_list()?;
+                self.highlight_active_window()?;
                 Ok(())
             }
             ModeInsert => {
                 self.set_mode(Mode::Insert);
+                self.remove_highlight_window();
                 Ok(())
             }
             LayoutFloating => {
