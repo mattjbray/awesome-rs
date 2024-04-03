@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ffi::c_void};
+use std::{collections::HashMap, ffi::c_void, mem};
 
 use accessibility::{AXUIElement, AXUIElementAttributes};
 use accessibility_sys::kAXWindowRole;
@@ -115,6 +115,19 @@ fn get_all_windows() -> Result<(
     Ok((open_windows, minimized_windows))
 }
 
+/// Return the position of the bottom-left of the window in Cocoa coordinates:
+/// (0,0) is bottom-left of main display, y increases in the up direction.
+fn position_to_origin(w: &WindowWrapper<AXUIElement>) -> Result<NSPoint> {
+    // (0,0) is top-left of main display, y increases down the screen
+    let f = w.frame()?;
+    let m = CGDisplay::main().bounds();
+
+    // (0,0) is bottom-left of main display, y increases up the screen
+    let x = f.origin.x;
+    let y = m.size.height - f.origin.y - f.size.height;
+    Ok(NSPoint::new(x, y))
+}
+
 #[derive(Debug)]
 pub struct WindowManager {
     drag_window: Option<DragWindow>,
@@ -218,14 +231,10 @@ impl WindowManager {
         match self.get_active_window()? {
             Some(w) => {
                 let f = w.frame()?;
-                let m = CGDisplay::main().bounds();
-
                 let outset = 7.;
-                let x = f.origin.x - outset;
-                let y = m.size.height - f.origin.y - f.size.height - outset;
-                let width = f.size.width + outset * 2.;
-                let height = f.size.height + outset * 2.;
-                let rect = NSRect::new(NSPoint::new(x, y), NSSize::new(width, height));
+                let pos = position_to_origin(&w)?;
+                let size = unsafe { mem::transmute::<CGSize, NSSize>(f.size) };
+                let rect = NSRect::new(pos, size).inset(-outset, -outset);
 
                 unsafe {
                     let window = NSWindow::alloc(nil);
