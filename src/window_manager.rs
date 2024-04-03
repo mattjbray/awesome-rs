@@ -487,11 +487,16 @@ impl WindowManager {
     }
 
     fn incr_primary_column_max_windows(&mut self) {
-        self.primary_column_max_windows = i32::min(
-            self.primary_column_max_windows + 1,
-            self.open_windows.len() as i32,
-        );
-        self.set_layout_tile_horizontal();
+        match self.active_window_idx {
+            Some((display_id, _)) => {
+                self.primary_column_max_windows = i32::min(
+                    self.primary_column_max_windows + 1,
+                    self.open_windows.get(&display_id).map_or(0, |ws| ws.len()) as i32,
+                );
+                self.set_layout_tile_horizontal();
+            }
+            None => (),
+        }
     }
 
     fn decr_primary_column_max_windows(&mut self) {
