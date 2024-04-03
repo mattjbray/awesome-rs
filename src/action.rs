@@ -43,7 +43,7 @@ const FLG_SHIFT: CGEventFlags = CGEventFlags::CGEventFlagShift;
 const FLG_CMD: CGEventFlags = CGEventFlags::CGEventFlagCommand;
 
 impl Action {
-    pub fn of_cg_event(event: &CGEvent, mode: &Mode, layout: &Layout) -> Option<Self> {
+    pub fn of_cg_event(event: &CGEvent, mode: &Mode, layout: Option<&Layout>) -> Option<Self> {
         match event.get_type() {
             CGEventType::KeyDown => {
                 // Extract only relevant flags so we can use (==)
@@ -59,16 +59,16 @@ impl Action {
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_C, _) => Some(LayoutCascade),
                     (Mode::Normal, FLG_NULL, KEYCODE_F, _) => Some(LayoutFloating),
-                    (Mode::Normal, FLG_ALT, KEYCODE_H, Layout::TileHorizontal(_)) => {
+                    (Mode::Normal, FLG_ALT, KEYCODE_H, Some(Layout::TileHorizontal(_))) => {
                         Some(IncrPrimaryColWindows)
                     }
-                    (Mode::Normal, FLG_ALT, KEYCODE_L, Layout::TileHorizontal(_)) => {
+                    (Mode::Normal, FLG_ALT, KEYCODE_L, Some(Layout::TileHorizontal(_))) => {
                         Some(DecrPrimaryColWindows)
                     }
-                    (Mode::Normal, FLG_NULL, KEYCODE_H, Layout::TileHorizontal(_)) => {
+                    (Mode::Normal, FLG_NULL, KEYCODE_H, Some(Layout::TileHorizontal(_))) => {
                         Some(DecrPrimaryColWidth)
                     }
-                    (Mode::Normal, FLG_NULL, KEYCODE_L, Layout::TileHorizontal(_)) => {
+                    (Mode::Normal, FLG_NULL, KEYCODE_L, Some(Layout::TileHorizontal(_))) => {
                         Some(IncrPrimaryColWidth)
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_H, _) => Some(WindowLeftHalf),

@@ -134,7 +134,7 @@ type DisplayID = u32;
 pub struct WindowManager {
     drag_window: Option<DragWindow>,
     mode: Mode,
-    layout: Layout,
+    layouts: HashMap<DisplayID, Layout>,
     active_window_idx: Option<(DisplayID, usize)>,
     open_windows: HashMap<DisplayID, Vec<WindowWrapper<AXUIElement>>>,
     minimized_windows: Vec<WindowWrapper<AXUIElement>>,
@@ -148,7 +148,7 @@ impl WindowManager {
         WindowManager {
             drag_window: None,
             mode: Mode::Normal,
-            layout: Layout::Floating,
+            layouts: HashMap::new(),
             active_window_idx: None,
             open_windows: HashMap::new(),
             minimized_windows: vec![],
@@ -319,15 +319,15 @@ impl WindowManager {
     }
 
     fn next_window_idx(&mut self) -> Option<(DisplayID, usize)> {
-        match self.layout {
-            Layout::TileHorizontal(_) => self._next_window_idx(),
+        match self.layout() {
+            Some(Layout::TileHorizontal(_)) => self._next_window_idx(),
             _ => self._prev_window_idx(),
         }
     }
 
     fn prev_window_idx(&mut self) -> Option<(DisplayID, usize)> {
-        match self.layout {
-            Layout::TileHorizontal(_) => self._prev_window_idx(),
+        match self.layout() {
+            Some(Layout::TileHorizontal(_)) => self._prev_window_idx(),
             _ => self._next_window_idx(),
         }
     }
@@ -460,13 +460,18 @@ impl WindowManager {
         }
     }
 
-    pub fn layout(&self) -> &Layout {
-        &self.layout
+    pub fn layout(&self) -> Option<&Layout> {
+        match self.active_window_idx {
+            Some((display_id, _)) => self.layouts.get(&display_id),
+            None => None,
+        }
     }
 
     fn set_layout(&mut self, layout: Layout) {
-        self.layout = layout;
-        eprintln!("set_layout: {:?}", self.layout);
+        if let Some((display_id, _)) = self.active_window_idx {
+            eprintln!("set_layout: {:?} for display {:?}", layout, display_id);
+            self.layouts.insert(display_id, layout);
+        }
     }
 
     fn set_layout_floating(&mut self) {
@@ -485,7 +490,10 @@ impl WindowManager {
     }
 
     fn relayout(&self) -> Result<()> {
-        self.layout.apply(&self.open_windows)
+        for (display_id, layout) in self.layouts.iter() {
+            layout.apply(&self.open_windows.get(display_id).unwrap_or(&vec![]))?;
+        }
+        Ok(())
     }
 
     fn incr_primary_column_max_windows(&mut self) {

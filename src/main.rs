@@ -87,7 +87,7 @@ fn mk_event_tap_callback(
             }
             _ => (),
         };
-        match Action::of_cg_event(&event, &s.mode(), &s.layout()) {
+        match Action::of_cg_event(&event, &s.mode(), s.layout()) {
             Some(action) => {
                 s.do_action(&action)
                     .unwrap_or_else(|e| eprintln!("While performing {:?}: {:?}", action, e));
