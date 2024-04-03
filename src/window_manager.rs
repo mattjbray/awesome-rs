@@ -4,10 +4,7 @@ use accessibility::{AXUIElement, AXUIElementAttributes};
 use accessibility_sys::kAXWindowRole;
 use anyhow::{anyhow, Result};
 use cocoa::{
-    appkit::{
-        NSBackingStoreType::NSBackingStoreBuffered, NSColor, NSWindow, NSWindowStyleMask,
-        NSWindowTitleVisibility,
-    },
+    appkit::{NSBackingStoreType::NSBackingStoreBuffered, NSColor, NSWindow, NSWindowStyleMask},
     base::{id, nil},
     foundation::{NSPoint, NSRect, NSSize},
 };
@@ -220,11 +217,7 @@ impl WindowManager {
                 false,
             );
             window.setBackgroundColor_(NSColor::systemRedColor(nil));
-            window.setAlphaValue_(0.5);
-            window.setOpaque_(false);
-            window.setTitlebarAppearsTransparent_(true);
-            window.setMovableByWindowBackground_(true);
-            window.setTitleVisibility_(NSWindowTitleVisibility::NSWindowTitleHidden);
+            window.setAlphaValue_(0.6);
             window.makeKeyAndOrderFront_(nil);
             self.ns_window = Some(window);
         }
