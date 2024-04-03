@@ -223,19 +223,24 @@ impl DisplayState {
         }
     }
 
+    fn pop_active_window(&mut self) -> Option<WindowWrapper<AXUIElement>> {
+        match self.active_window_idx {
+            Some(idx) => {
+                let w = self.open_windows.remove(idx);
+                self.active_window_idx = if self.open_windows.len() == 0 {
+                    None
+                } else {
+                    Some(usize::min(idx, self.open_windows.len() - 1))
+                };
+                Some(w)
+            }
+            None => None,
+        }
+    }
+
     fn close_active_window(&mut self) -> Result<()> {
-        if let Some(window) = self.get_active_window() {
-            window.close()?;
-            let idx = self.active_window_idx.unwrap();
-            let _w = self.open_windows.remove(idx);
-
-            self.active_window_idx = if self.open_windows.len() == 0 {
-                None
-            } else {
-                Some(usize::min(idx, self.open_windows.len() - 1))
-            };
-
-            Ok(())
+        if let Some(window) = self.pop_active_window() {
+            window.close()
         } else {
             Ok(())
         }
@@ -571,21 +576,15 @@ impl WindowManager {
     }
 
     fn minimize_active_window(&mut self) -> Result<()> {
-        if let Some(window) = self.get_active_window() {
-            window.set_minimized(true)?;
-            let ds = self.get_active_display_mut().unwrap();
-            let idx = ds.active_window_idx.unwrap();
-            let w = ds.open_windows.remove(idx);
-
-            ds.active_window_idx = if ds.open_windows.len() == 0 {
-                None
-            } else {
-                Some(usize::min(idx, ds.open_windows.len() - 1))
-            };
-
-            self.minimized_windows.push(w);
-
-            Ok(())
+        if let Some(ds) = self.get_active_display_mut() {
+            match ds.pop_active_window() {
+                Some(window) => {
+                    window.set_minimized(true)?;
+                    self.minimized_windows.push(window);
+                    Ok(())
+                }
+                None => Ok(()),
+            }
         } else {
             Ok(())
         }
