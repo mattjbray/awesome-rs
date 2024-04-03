@@ -245,7 +245,7 @@ impl WindowManager {
                         false,
                     );
                     window.setBackgroundColor_(NSColor::systemRedColor(nil));
-                    window.setAlphaValue_(0.6);
+                    window.setAlphaValue_(0.7);
                     window.makeKeyAndOrderFront_(nil);
                     self.ns_window = Some(window);
                 }
