@@ -3,9 +3,7 @@ use std::ffi::c_void;
 
 use accessibility::AXUIElement;
 use awesome_rs::{Action, DragWindow, WindowManager};
-use cocoa::
-    appkit::{NSApp, NSApplication}
-;
+use cocoa::appkit::{NSApp, NSApplication};
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
 use core_graphics::event::{
     CGEvent, CGEventFlags, CGEventTap, CGEventTapCallbackResult, CGEventTapLocation,
