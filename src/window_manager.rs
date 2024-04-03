@@ -212,33 +212,38 @@ impl WindowManager {
         }
     }
 
+    /// Create a window slightly larger than and behind the active window.
     fn highlight_active_window(&mut self) -> Result<()> {
         self.remove_highlight_window();
-        let w = self.get_active_window()?.unwrap();
-        let f = w.frame()?;
-        let m = CGDisplay::main().bounds();
+        match self.get_active_window()? {
+            Some(w) => {
+                let f = w.frame()?;
+                let m = CGDisplay::main().bounds();
 
-        let outset = 7.;
-        let x = f.origin.x - outset;
-        let y = m.size.height - f.origin.y - f.size.height - outset;
-        let width = f.size.width + outset * 2.;
-        let height = f.size.height + outset * 2.;
-        let rect = NSRect::new(NSPoint::new(x, y), NSSize::new(width, height));
+                let outset = 7.;
+                let x = f.origin.x - outset;
+                let y = m.size.height - f.origin.y - f.size.height - outset;
+                let width = f.size.width + outset * 2.;
+                let height = f.size.height + outset * 2.;
+                let rect = NSRect::new(NSPoint::new(x, y), NSSize::new(width, height));
 
-        unsafe {
-            let window = NSWindow::alloc(nil);
-            window.initWithContentRect_styleMask_backing_defer_(
-                rect,
-                NSWindowStyleMask::empty(),
-                NSBackingStoreBuffered,
-                false,
-            );
-            window.setBackgroundColor_(NSColor::systemRedColor(nil));
-            window.setAlphaValue_(0.6);
-            window.makeKeyAndOrderFront_(nil);
-            self.ns_window = Some(window);
+                unsafe {
+                    let window = NSWindow::alloc(nil);
+                    window.initWithContentRect_styleMask_backing_defer_(
+                        rect,
+                        NSWindowStyleMask::empty(),
+                        NSBackingStoreBuffered,
+                        false,
+                    );
+                    window.setBackgroundColor_(NSColor::systemRedColor(nil));
+                    window.setAlphaValue_(0.6);
+                    window.makeKeyAndOrderFront_(nil);
+                    self.ns_window = Some(window);
+                }
+                Ok(())
+            }
+            None => Ok(()),
         }
-        Ok(())
     }
 
     fn remove_highlight_window(&mut self) {
