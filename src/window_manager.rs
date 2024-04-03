@@ -4,7 +4,10 @@ use accessibility::{AXUIElement, AXUIElementAttributes};
 use accessibility_sys::kAXWindowRole;
 use anyhow::{anyhow, Result};
 use cocoa::{
-    appkit::{NSBackingStoreType::NSBackingStoreBuffered, NSWindow, NSWindowStyleMask},
+    appkit::{
+        NSBackingStoreType::NSBackingStoreBuffered, NSColor, NSWindow, NSWindowStyleMask,
+        NSWindowTitleVisibility,
+    },
     base::{id, nil},
     foundation::{NSPoint, NSRect, NSSize},
 };
@@ -196,11 +199,12 @@ impl WindowManager {
     }
 
     fn highlight_active_window(&mut self) -> Result<()> {
+        self.remove_highlight_window();
         let w = self.get_active_window()?.unwrap();
         let f = w.frame()?;
         let m = CGDisplay::main().bounds();
 
-        let outset = 10.;
+        let outset = 7.;
         let x = f.origin.x - outset;
         let y = m.size.height - f.origin.y - f.size.height - outset;
         let width = f.size.width + outset * 2.;
@@ -215,6 +219,12 @@ impl WindowManager {
                 NSBackingStoreBuffered,
                 false,
             );
+            window.setBackgroundColor_(NSColor::systemRedColor(nil));
+            window.setAlphaValue_(0.5);
+            window.setOpaque_(false);
+            window.setTitlebarAppearsTransparent_(true);
+            window.setMovableByWindowBackground_(true);
+            window.setTitleVisibility_(NSWindowTitleVisibility::NSWindowTitleHidden);
             window.makeKeyAndOrderFront_(nil);
             self.ns_window = Some(window);
         }
@@ -226,7 +236,6 @@ impl WindowManager {
             Some(window) => {
                 unsafe {
                     window.close();
-                    // window.autorelease();
                 };
                 self.ns_window = None;
             }
