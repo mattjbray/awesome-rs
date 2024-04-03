@@ -1,7 +1,7 @@
 use std::{error::Error, fmt::Display, ops::Deref};
 
 use accessibility::{AXAttribute, AXUIElement, AXUIElementAttributes, AXValue};
-use accessibility_sys::kAXApplicationRole;
+use accessibility_sys::{kAXApplicationRole, kAXCloseButtonAttribute, kAXPressAction};
 use anyhow::Result;
 use core_foundation::{
     base::{CFType, ItemRef, TCFType},
@@ -152,8 +152,24 @@ pub trait Window {
     }
 
     fn set_minimized(&self, minimized: bool) -> Result<()> {
-        self.element().set_attribute(&AXAttribute::minimized(), minimized)?;
+        self.element()
+            .set_attribute(&AXAttribute::minimized(), minimized)?;
         Ok(())
+    }
+
+    fn close(&self) -> Result<()> {
+        let close_button_attr: AXAttribute<CFType> =
+            AXAttribute::new(&CFString::from_static_string(kAXCloseButtonAttribute));
+        let btn = self
+            .element()
+            .attribute(&close_button_attr)?
+            .downcast_into::<AXUIElement>();
+        if let Some(btn) = btn {
+            btn.perform_action(&CFString::from_static_string(kAXPressAction))?;
+            Ok(())
+        } else {
+            Ok(())
+        }
     }
 }
 

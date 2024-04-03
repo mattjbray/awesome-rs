@@ -460,6 +460,25 @@ impl WindowManager {
         }
     }
 
+    fn close_active_window(&mut self) -> Result<()> {
+        if let Some(window) = self.get_active_window()? {
+            window.close()?;
+            let (display_id, idx) = self.active_window_idx.unwrap();
+            let ws = self.open_windows.get_mut(&display_id).unwrap();
+            let _w = ws.remove(idx);
+
+            self.active_window_idx = if ws.len() == 0 {
+                None
+            } else {
+                Some((display_id, usize::min(idx, ws.len() - 1)))
+            };
+
+            Ok(())
+        } else {
+            Ok(())
+        }
+    }
+
     pub fn layout(&self) -> Option<&Layout> {
         match self.active_window_idx {
             Some((display_id, _)) => self.layouts.get(&display_id),
@@ -585,6 +604,13 @@ impl WindowManager {
             }
             WindowRestore => {
                 self.unminimize_window()?;
+                self.activate_active_window()?;
+                self.relayout()?;
+                self.highlight_active_window()?;
+                Ok(())
+            }
+            WindowClose => {
+                self.close_active_window()?;
                 self.activate_active_window()?;
                 self.relayout()?;
                 self.highlight_active_window()?;

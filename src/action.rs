@@ -15,6 +15,7 @@ pub enum Action {
     WindowRightHalf,
     WindowMinimize,
     WindowRestore,
+    WindowClose,
     NextWindow,
     PrevWindow,
     SwapNextWindow,
@@ -35,6 +36,7 @@ const KEYCODE_L: i64 = 37;
 const KEYCODE_M: i64 = 46;
 const KEYCODE_R: i64 = 15;
 const KEYCODE_T: i64 = 17;
+const KEYCODE_X: i64 = 7;
 const KEYCODE_ENT: i64 = 36;
 const FLG_NULL: CGEventFlags = CGEventFlags::CGEventFlagNull;
 const FLG_CTRL: CGEventFlags = CGEventFlags::CGEventFlagControl;
@@ -82,6 +84,7 @@ impl Action {
                     (Mode::Normal, FLG_NULL, KEYCODE_J, _) => Some(NextWindow),
                     (Mode::Normal, FLG_NULL, KEYCODE_K, _) => Some(PrevWindow),
                     (Mode::Normal, FLG_NULL, KEYCODE_ENT, _) => Some(WindowFull),
+                    (Mode::Normal, FLG_NULL, KEYCODE_X, _) => Some(WindowClose),
                     (Mode::Normal, _, _, _) => Some(ModeInsert),
                     _ => None,
                 }
