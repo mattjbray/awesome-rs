@@ -523,7 +523,7 @@ impl WindowManager {
         Ok(())
     }
 
-    fn set_active_window_left(&self) -> Result<()> {
+    fn set_active_window_left(&mut self) -> Result<()> {
         if let Some(window) = self.get_active_window() {
             let d = window.display()?.bounds();
             let w = window.frame()?;
@@ -539,6 +539,13 @@ impl WindowManager {
                         &CGPoint::new(d.origin.x + d.size.width / 2., d.origin.y),
                         &CGSize::new(d.size.width / 2., d.size.height),
                     ))?;
+                    if let Some(ds) = self.get_active_display_mut() {
+                        if let Some(w) = ds.pop_active_window() {
+                            let display_id = w.display()?.id;
+                            self.insert_open_window(w)?;
+                            self.active_display_id = Some(display_id);
+                        }
+                    }
                 }
             } else {
                 window.set_frame(CGRect::new(
@@ -550,7 +557,7 @@ impl WindowManager {
         Ok(())
     }
 
-    fn set_active_window_right(&self) -> Result<()> {
+    fn set_active_window_right(&mut self) -> Result<()> {
         if let Some(window) = self.get_active_window() {
             let d = window.display()?.bounds();
             let w = window.frame()?;
@@ -564,6 +571,13 @@ impl WindowManager {
                         &d.origin,
                         &CGSize::new(d.size.width / 2., d.size.height),
                     ))?;
+                    if let Some(ds) = self.get_active_display_mut() {
+                        if let Some(w) = ds.pop_active_window() {
+                            let display_id = w.display()?.id;
+                            self.insert_open_window(w)?;
+                            self.active_display_id = Some(display_id);
+                        }
+                    }
                 }
             } else {
                 window.set_frame(CGRect::new(
