@@ -128,13 +128,15 @@ fn position_to_origin(w: &WindowWrapper<AXUIElement>) -> Result<NSPoint> {
     Ok(NSPoint::new(x, y))
 }
 
+type DisplayID = u32;
+
 #[derive(Debug)]
 pub struct WindowManager {
     drag_window: Option<DragWindow>,
     mode: Mode,
     layout: Layout,
-    active_window_idx: Option<(u32, usize)>,
-    open_windows: HashMap<u32, Vec<WindowWrapper<AXUIElement>>>,
+    active_window_idx: Option<(DisplayID, usize)>,
+    open_windows: HashMap<DisplayID, Vec<WindowWrapper<AXUIElement>>>,
     minimized_windows: Vec<WindowWrapper<AXUIElement>>,
     primary_column_max_windows: i32,
     primary_column_pct: u8,
@@ -276,7 +278,7 @@ impl WindowManager {
         }
     }
 
-    fn _next_window_idx(&mut self) -> Option<(u32, usize)> {
+    fn _next_window_idx(&mut self) -> Option<(DisplayID, usize)> {
         match self.active_window_idx {
             Some((display_id, idx)) => {
                 let num_windows = self.open_windows.get(&display_id).map_or(0, |ws| ws.len());
@@ -296,7 +298,7 @@ impl WindowManager {
         }
     }
 
-    fn _prev_window_idx(&mut self) -> Option<(u32, usize)> {
+    fn _prev_window_idx(&mut self) -> Option<(DisplayID, usize)> {
         match self.active_window_idx {
             Some((display_id, idx)) => {
                 let num_windows = self.open_windows.get(&display_id).map_or(0, |ws| ws.len());
@@ -316,14 +318,14 @@ impl WindowManager {
         }
     }
 
-    fn next_window_idx(&mut self) -> Option<(u32, usize)> {
+    fn next_window_idx(&mut self) -> Option<(DisplayID, usize)> {
         match self.layout {
             Layout::TileHorizontal(_) => self._next_window_idx(),
             _ => self._prev_window_idx(),
         }
     }
 
-    fn prev_window_idx(&mut self) -> Option<(u32, usize)> {
+    fn prev_window_idx(&mut self) -> Option<(DisplayID, usize)> {
         match self.layout {
             Layout::TileHorizontal(_) => self._prev_window_idx(),
             _ => self._next_window_idx(),
