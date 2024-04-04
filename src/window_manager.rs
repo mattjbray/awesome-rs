@@ -302,7 +302,9 @@ impl DisplayState {
 pub struct WindowManager {
     drag_window: Option<DragWindow>,
     mode: Mode,
-    active_display_id: Option<DisplayID>,
+    active_display_idx: Option<usize>,
+    /// Index into self.display_ids
+    display_ids: Vec<DisplayID>,
     displays: HashMap<DisplayID, DisplayState>,
     minimized_windows: Vec<WindowWrapper<AXUIElement>>,
     ns_window: Option<id>,
@@ -313,7 +315,8 @@ impl WindowManager {
         WindowManager {
             drag_window: None,
             mode: Mode::Normal,
-            active_display_id: None,
+            active_display_idx: None,
+            display_ids: vec![],
             displays: HashMap::new(),
             minimized_windows: vec![],
             ns_window: None,
@@ -321,7 +324,7 @@ impl WindowManager {
     }
 
     fn refresh_active_window(&mut self) {
-        self.active_display_id = self.displays.iter_mut().find_map(|(display_id, ds)| {
+        let active_display_id = self.displays.iter_mut().find_map(|(display_id, ds)| {
             ds.open_windows
                 .iter()
                 .position(|w| w.frontmost_and_main().unwrap_or(false))
@@ -330,6 +333,8 @@ impl WindowManager {
                     *display_id
                 })
         });
+        self.active_display_idx = active_display_id
+            .and_then(|display_id| self.display_ids.iter().position(|d_id| *d_id == display_id));
     }
 
     fn insert_open_window(&mut self, window: WindowWrapper<AXUIElement>) -> Result<()> {
@@ -348,6 +353,8 @@ impl WindowManager {
     }
 
     pub fn refresh_window_list(&mut self) -> Result<()> {
+        self.display_ids = CGDisplay::active_displays()
+            .map_err(|e| anyhow!(format!("CGDisplay::active_displays {:?}", e)))?;
         let (open_windows, minimized_windows) = get_all_windows()?;
         for display in self.displays.values_mut() {
             display.open_windows.clear();
@@ -382,18 +389,16 @@ impl WindowManager {
     }
 
     fn get_active_display(&self) -> Option<&DisplayState> {
-        self.active_display_id.map(|display_id| {
-            self.displays
-                .get(&display_id)
-                .expect("active_display_id not present in displays")
+        self.active_display_idx.and_then(|idx| {
+            let display_id = self.display_ids[idx];
+            self.displays.get(&display_id)
         })
     }
 
     fn get_active_display_mut(&mut self) -> Option<&mut DisplayState> {
-        self.active_display_id.map(|display_id| {
-            self.displays
-                .get_mut(&display_id)
-                .expect("active_display_id not present in displays")
+        self.active_display_idx.and_then(|idx| {
+            let display_id = self.display_ids[idx];
+            self.displays.get_mut(&display_id)
         })
     }
 
@@ -473,32 +478,36 @@ impl WindowManager {
         }
     }
 
-    fn next_display(&mut self) -> Result<()> {
-        self.active_display_id = match self.active_display_id {
-            None => self.displays.iter().next().and_then(|(display_id, ds)| {
-                if ds.open_windows.len() > 0 {
-                    Some(*display_id)
+    fn next_display(&mut self) {
+        let num_displays = self.display_ids.len();
+
+        self.active_display_idx = match self.active_display_idx {
+            Some(idx) => {
+                if idx >= num_displays - 1 {
+                    Some(0)
                 } else {
-                    None
+                    Some(idx + 1)
                 }
-            }),
-            Some(display_id) => {
-                let mut iter = self
-                    .displays
-                    .iter()
-                    .skip_while(|(&d_id, _)| d_id != display_id);
-                iter.next();
-                iter.find_map(|(display_id, ds)| {
-                    if ds.open_windows.len() > 0 {
-                        Some(*display_id)
-                    } else {
-                        None
-                    }
-                })
             }
-        };
-        self.activate_active_window()?;
-        Ok(())
+            None if num_displays > 0 => Some(0),
+            None => None,
+        }
+    }
+
+    fn prev_display(&mut self) {
+        let num_displays = self.display_ids.len();
+
+        self.active_display_idx = match self.active_display_idx {
+            Some(idx) => {
+                if idx == 0 {
+                    Some(num_displays - 1)
+                } else {
+                    Some(idx - 1)
+                }
+            }
+            None if num_displays > 0 => Some(0),
+            None => None,
+        }
     }
 
     fn swap_window_prev(&mut self) {
@@ -543,7 +552,8 @@ impl WindowManager {
                         if let Some(w) = ds.pop_active_window() {
                             let display_id = w.display()?.id;
                             self.insert_open_window(w)?;
-                            self.active_display_id = Some(display_id);
+                            self.active_display_idx =
+                                self.display_ids.iter().position(|d_id| *d_id == display_id);
                         }
                     }
                 }
@@ -575,7 +585,8 @@ impl WindowManager {
                         if let Some(w) = ds.pop_active_window() {
                             let display_id = w.display()?.id;
                             self.insert_open_window(w)?;
-                            self.active_display_id = Some(display_id);
+                            self.active_display_idx =
+                                self.display_ids.iter().position(|d_id| *d_id == display_id);
                         }
                     }
                 }
@@ -803,12 +814,14 @@ impl WindowManager {
                 Ok(())
             }
             NextDisplay => {
-                self.next_display()?;
+                self.next_display();
+                self.activate_active_window()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
             PrevDisplay => {
-                self.next_display()?; // TODO
+                self.prev_display();
+                self.activate_active_window()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
