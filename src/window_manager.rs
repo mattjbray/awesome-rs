@@ -155,32 +155,40 @@ impl DisplayState {
     fn _next_window_idx(&self) -> Option<usize> {
         let num_windows = self.open_windows.len();
 
-        match self.active_window_idx {
-            Some(idx) => {
-                if idx >= num_windows - 1 {
-                    Some(0)
-                } else {
-                    Some(idx + 1)
+        if num_windows == 0 {
+            None
+        } else {
+            match self.active_window_idx {
+                Some(idx) => {
+                    if idx >= num_windows - 1 {
+                        Some(0)
+                    } else {
+                        Some(idx + 1)
+                    }
                 }
+                None if num_windows > 0 => Some(0),
+                None => None,
             }
-            None if num_windows > 0 => Some(0),
-            None => None,
         }
     }
 
     fn _prev_window_idx(&self) -> Option<usize> {
         let num_windows = self.open_windows.len();
 
-        match self.active_window_idx {
-            Some(idx) => {
-                if idx == 0 {
-                    Some(num_windows - 1)
-                } else {
-                    Some(idx - 1)
+        if num_windows == 0 {
+            None
+        } else {
+            match self.active_window_idx {
+                Some(idx) => {
+                    if idx == 0 {
+                        Some(num_windows - 1)
+                    } else {
+                        Some(idx - 1)
+                    }
                 }
+                None if num_windows > 0 => Some(0),
+                None => None,
             }
-            None if num_windows > 0 => Some(0),
-            None => None,
         }
     }
 
