@@ -166,8 +166,7 @@ impl DisplayState {
                         Some(idx + 1)
                     }
                 }
-                None if num_windows > 0 => Some(0),
-                None => None,
+                None => Some(0),
             }
         }
     }
@@ -186,8 +185,7 @@ impl DisplayState {
                         Some(idx - 1)
                     }
                 }
-                None if num_windows > 0 => Some(0),
-                None => None,
+                None => Some(0),
             }
         }
     }
