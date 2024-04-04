@@ -458,27 +458,19 @@ impl WindowManager {
         }
     }
 
-    fn next_window(&mut self) -> Result<()> {
-        match self.get_active_display_mut() {
-            None => Ok(()),
-            Some(ds) => {
-                ds.active_window_idx = ds.next_window_idx();
-                self.activate_active_window()
-            }
+    fn set_next_window_active(&mut self) {
+        if let Some(ds) = self.get_active_display_mut() {
+            ds.active_window_idx = ds.next_window_idx();
         }
     }
 
-    fn prev_window(&mut self) -> Result<()> {
-        match self.get_active_display_mut() {
-            None => Ok(()),
-            Some(ds) => {
-                ds.active_window_idx = ds.prev_window_idx();
-                self.activate_active_window()
-            }
+    fn set_prev_window_active(&mut self) {
+        if let Some(ds) = self.get_active_display_mut() {
+            ds.active_window_idx = ds.prev_window_idx();
         }
     }
 
-    fn next_display(&mut self) {
+    fn set_next_display_active(&mut self) {
         let num_displays = self.display_ids.len();
 
         self.active_display_idx = match self.active_display_idx {
@@ -494,7 +486,7 @@ impl WindowManager {
         }
     }
 
-    fn prev_display(&mut self) {
+    fn set_prev_display_active(&mut self) {
         let num_displays = self.display_ids.len();
 
         self.active_display_idx = match self.active_display_idx {
@@ -768,12 +760,14 @@ impl WindowManager {
                 Ok(())
             }
             NextWindow => {
-                self.next_window()?;
+                self.set_next_window_active();
+                self.activate_active_window()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
             PrevWindow => {
-                self.prev_window()?;
+                self.set_prev_window_active();
+                self.activate_active_window()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
@@ -814,13 +808,13 @@ impl WindowManager {
                 Ok(())
             }
             NextDisplay => {
-                self.next_display();
+                self.set_next_display_active();
                 self.activate_active_window()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
             PrevDisplay => {
-                self.prev_display();
+                self.set_prev_display_active();
                 self.activate_active_window()?;
                 self.highlight_active_window()?;
                 Ok(())
