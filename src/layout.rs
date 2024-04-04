@@ -1,6 +1,6 @@
 use accessibility::AXUIElement;
 use anyhow::Result;
-use core_graphics::display::{CGPoint, CGRect, CGSize};
+use core_graphics::display::{CGDisplay, CGPoint, CGRect, CGSize};
 
 use crate::{window::WindowWrapper, Window};
 
@@ -33,17 +33,34 @@ impl Layout {
         })
     }
 
-    pub fn apply(&self, windows: &Windows) -> Result<()> {
+    pub fn apply(&self, display_id: u32, windows: &Windows) -> Result<()> {
+        let display = CGDisplay::new(display_id);
         match self {
-            Layout::Floating => Ok(()),
-            Layout::Cascade => self.apply_cascade(windows),
-            Layout::TileHorizontal(opts) => self.apply_tile_horizontal(windows, &opts),
+            Layout::Floating => self.apply_floating(&display, windows),
+            Layout::Cascade => self.apply_cascade(&display, windows),
+            Layout::TileHorizontal(opts) => self.apply_tile_horizontal(&display, windows, &opts),
         }
     }
 
-    fn apply_cascade(&self, windows: &Windows) -> Result<()> {
+    fn apply_floating(&self, display: &CGDisplay, windows: &Windows) -> Result<()> {
+        let d = display.bounds();
+        for w in windows.iter().rev() {
+            let window_display = w.display()?;
+            let window_pos = w.position()?;
+            if window_display.id != display.id {
+                let x = window_pos.x - window_display.bounds().origin.x + d.origin.x;
+                let y = window_pos.y - window_display.bounds().origin.y + d.origin.y;
+                w.set_position(CGPoint::new(x, y)).unwrap_or_else(|e| {
+                    eprintln!("Could not set_position on window {:?}: {:?}", w, e)
+                });
+            }
+        }
+        Ok(())
+    }
+
+    fn apply_cascade(&self, display: &CGDisplay, windows: &Windows) -> Result<()> {
+        let d = display.bounds();
         for (i, w) in windows.iter().rev().enumerate() {
-            let d = w.display()?.bounds();
             let rect = CGRect::new(
                 &CGPoint::new(
                     d.origin.x + i as f64 * 32.,
@@ -57,14 +74,19 @@ impl Layout {
         Ok(())
     }
 
-    fn apply_tile_horizontal(&self, windows: &Windows, opts: &TileHorizontalOpts) -> Result<()> {
+    fn apply_tile_horizontal(
+        &self,
+        display: &CGDisplay,
+        windows: &Windows,
+        opts: &TileHorizontalOpts,
+    ) -> Result<()> {
         let num_windows = windows.len() as i32;
 
         if num_windows == 0 {
             return Ok(());
         };
 
-        let d = windows[0].display()?.bounds();
+        let d = display.bounds();
 
         let num_left = i32::min(num_windows, opts.max_num_left);
         let num_right = if num_windows > num_left {

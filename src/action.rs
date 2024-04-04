@@ -26,6 +26,8 @@ pub enum Action {
     DecrPrimaryColWindows,
     NextDisplay,
     PrevDisplay,
+    MoveWindowToNextDisplay,
+    MoveWindowToPrevDisplay,
 }
 
 const KEYCODE_A: i64 = 0;
@@ -91,6 +93,8 @@ impl Action {
                     (Mode::Normal, FLG_NULL, KEYCODE_X, _) => Some(WindowClose),
                     (Mode::Normal, FLG_NULL, KEYCODE_N, _) => Some(NextDisplay),
                     (Mode::Normal, FLG_NULL, KEYCODE_P, _) => Some(PrevDisplay),
+                    (Mode::Normal, FLG_ALT, KEYCODE_N, _) => Some(MoveWindowToNextDisplay),
+                    (Mode::Normal, FLG_ALT, KEYCODE_P, _) => Some(MoveWindowToPrevDisplay),
                     (Mode::Normal, _, _, _) => Some(ModeInsert),
                     _ => None,
                 }
