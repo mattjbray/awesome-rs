@@ -13,6 +13,14 @@ cocoa = "0.25.0"
 core-foundation = "0.9.4"
 core-graphics = "0.23.1"
 
+[dependencies.uuid]
+version = "1.8.0"
+features = [
+    "v4",                # Lets you generate random UUIDs
+    "fast-rng",          # Use a faster (but still sufficiently random) RNG
+    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
+]
+
 [patch.crates-io]
 accessibility = { path = "./vendor/accessibility/accessibility" }
 accessibility-sys = { path = "./vendor/accessibility/accessibility-sys" }

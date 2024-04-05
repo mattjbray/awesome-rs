@@ -91,7 +91,7 @@ fn get_all_windows() -> Result<(
             Ok(windows) => {
                 for w in windows.iter() {
                     if w.role()? == kAXWindowRole {
-                        let w = WindowWrapper(w.clone());
+                        let w = WindowWrapper::new(w.clone());
                         // w.debug_attributes()?;
                         if w.minimized()? {
                             minimized_windows.push(w);
@@ -370,8 +370,31 @@ impl DisplayState {
         if let Some(w) = self.pop_active_window() {
             match self.groups.get_mut(&g_id) {
                 Some(g) => {
-                    g.windows.insert(0, w);
-                    g.active_window_idx = Some(0);
+                    if !g.windows.iter().any(|w_| w_.id() == w.id()) {
+                        g.windows.insert(0, w);
+                        g.active_window_idx = Some(0);
+                    }
+                }
+                None => {
+                    self.groups.insert(g_id, WindowGroup::new(w));
+                }
+            }
+        }
+    }
+
+    fn toggle_active_window_in_group(&mut self, g_id: u8) {
+        if Some(g_id) == self.active_group {
+            // Do not remove windows from the active group (potentially
+            // orphaning the window).
+            return;
+        }
+        if let Some(w) = self.get_active_window().cloned() {
+            match self.groups.get_mut(&g_id) {
+                Some(g) => {
+                    if !g.windows.iter().any(|w_| w_.id() == w.id()) {
+                        g.windows.insert(0, w);
+                        g.active_window_idx = Some(0);
+                    }
                 }
                 None => {
                     self.groups.insert(g_id, WindowGroup::new(w));
@@ -708,6 +731,12 @@ impl WindowManager {
     fn move_active_window_to_group(&mut self, g_id: u8) {
         if let Some(ds) = self.get_active_display_mut() {
             ds.move_active_window_to_group(g_id)
+        }
+    }
+
+    fn toggle_active_window_in_group(&mut self, g_id: u8) {
+        if let Some(ds) = self.get_active_display_mut() {
+            ds.toggle_active_window_in_group(g_id)
         }
     }
 
@@ -1060,6 +1089,13 @@ impl WindowManager {
             }
             MoveWindowToGroup(g_id) => {
                 self.move_active_window_to_group(*g_id);
+                self.activate_active_window()?;
+                self.relayout()?;
+                self.highlight_active_window()?;
+                Ok(())
+            }
+            ToggleWindowInGroup(g_id) => {
+                self.toggle_active_window_in_group(*g_id);
                 self.activate_active_window()?;
                 self.relayout()?;
                 self.highlight_active_window()?;

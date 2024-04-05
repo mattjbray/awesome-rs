@@ -29,6 +29,7 @@ pub enum Action {
     MoveWindowToNextDisplay,
     MoveWindowToPrevDisplay,
     MoveWindowToGroup(u8),
+    ToggleWindowInGroup(u8),
     ShowGroup(u8),
 }
 
@@ -71,7 +72,7 @@ impl Action {
                     .get_flags()
                     .intersection(FLG_CTRL | FLG_ALT | FLG_SHIFT | FLG_CMD);
                 let keycode = event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE);
-                println!("KeyDown ({:?}) {}", mode, keycode);
+                // eprintln!("KeyDown ({:?}) {}", mode, keycode);
                 use Action::*;
                 match (mode, flags, keycode, layout) {
                     (Mode::Insert, _, KEYCODE_A, _) if flags == FLG_SHIFT | FLG_ALT => {
@@ -109,24 +110,54 @@ impl Action {
                     (Mode::Normal, FLG_ALT, KEYCODE_P, _) => Some(MoveWindowToPrevDisplay),
                     (Mode::Normal, FLG_NULL, KEYCODE_0, _) => Some(ShowGroup(0)),
                     (Mode::Normal, FLG_ALT, KEYCODE_0, _) => Some(MoveWindowToGroup(0)),
+                    (Mode::Normal, _, KEYCODE_0, _) if flags == FLG_ALT | FLG_SHIFT => {
+                        Some(ToggleWindowInGroup(0))
+                    }
                     (Mode::Normal, FLG_NULL, KEYCODE_1, _) => Some(ShowGroup(1)),
                     (Mode::Normal, FLG_ALT, KEYCODE_1, _) => Some(MoveWindowToGroup(1)),
+                    (Mode::Normal, _, KEYCODE_1, _) if flags == FLG_ALT | FLG_SHIFT => {
+                        Some(ToggleWindowInGroup(1))
+                    }
                     (Mode::Normal, FLG_NULL, KEYCODE_2, _) => Some(ShowGroup(2)),
                     (Mode::Normal, FLG_ALT, KEYCODE_2, _) => Some(MoveWindowToGroup(2)),
+                    (Mode::Normal, _, KEYCODE_2, _) if flags == FLG_ALT | FLG_SHIFT => {
+                        Some(ToggleWindowInGroup(2))
+                    }
                     (Mode::Normal, FLG_NULL, KEYCODE_3, _) => Some(ShowGroup(3)),
                     (Mode::Normal, FLG_ALT, KEYCODE_3, _) => Some(MoveWindowToGroup(3)),
+                    (Mode::Normal, _, KEYCODE_3, _) if flags == FLG_ALT | FLG_SHIFT => {
+                        Some(ToggleWindowInGroup(3))
+                    }
                     (Mode::Normal, FLG_NULL, KEYCODE_4, _) => Some(ShowGroup(4)),
                     (Mode::Normal, FLG_ALT, KEYCODE_4, _) => Some(MoveWindowToGroup(4)),
+                    (Mode::Normal, _, KEYCODE_4, _) if flags == FLG_ALT | FLG_SHIFT => {
+                        Some(ToggleWindowInGroup(4))
+                    }
                     (Mode::Normal, FLG_NULL, KEYCODE_5, _) => Some(ShowGroup(5)),
                     (Mode::Normal, FLG_ALT, KEYCODE_5, _) => Some(MoveWindowToGroup(5)),
+                    (Mode::Normal, _, KEYCODE_5, _) if flags == FLG_ALT | FLG_SHIFT => {
+                        Some(ToggleWindowInGroup(5))
+                    }
                     (Mode::Normal, FLG_NULL, KEYCODE_6, _) => Some(ShowGroup(6)),
                     (Mode::Normal, FLG_ALT, KEYCODE_6, _) => Some(MoveWindowToGroup(6)),
+                    (Mode::Normal, _, KEYCODE_6, _) if flags == FLG_ALT | FLG_SHIFT => {
+                        Some(ToggleWindowInGroup(6))
+                    }
                     (Mode::Normal, FLG_NULL, KEYCODE_7, _) => Some(ShowGroup(7)),
                     (Mode::Normal, FLG_ALT, KEYCODE_7, _) => Some(MoveWindowToGroup(7)),
+                    (Mode::Normal, _, KEYCODE_7, _) if flags == FLG_ALT | FLG_SHIFT => {
+                        Some(ToggleWindowInGroup(7))
+                    }
                     (Mode::Normal, FLG_NULL, KEYCODE_8, _) => Some(ShowGroup(8)),
                     (Mode::Normal, FLG_ALT, KEYCODE_8, _) => Some(MoveWindowToGroup(8)),
+                    (Mode::Normal, _, KEYCODE_8, _) if flags == FLG_ALT | FLG_SHIFT => {
+                        Some(ToggleWindowInGroup(8))
+                    }
                     (Mode::Normal, FLG_NULL, KEYCODE_9, _) => Some(ShowGroup(9)),
                     (Mode::Normal, FLG_ALT, KEYCODE_9, _) => Some(MoveWindowToGroup(9)),
+                    (Mode::Normal, _, KEYCODE_9, _) if flags == FLG_ALT | FLG_SHIFT => {
+                        Some(ToggleWindowInGroup(9))
+                    }
                     (Mode::Normal, _, _, _) => Some(ModeInsert),
                     _ => None,
                 }

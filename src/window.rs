@@ -173,8 +173,24 @@ pub trait Window {
     }
 }
 
-#[derive(Debug)]
-pub struct WindowWrapper<T>(pub T);
+#[derive(Debug, Clone)]
+pub struct WindowWrapper<T> {
+    id: uuid::Uuid,
+    element: T,
+}
+
+impl<T> WindowWrapper<T> {
+    pub fn new(element: T) -> Self {
+        Self {
+            id: uuid::Uuid::new_v4(),
+            element,
+        }
+    }
+
+    pub fn id(&self) -> &uuid::Uuid {
+        &self.id
+    }
+}
 
 impl WindowWrapper<AXUIElement> {
     fn from_ui_element(element: AXUIElement) -> Result<Self> {
@@ -189,7 +205,7 @@ impl WindowWrapper<AXUIElement> {
             element.window()
         }?;
 
-        Ok(Self(window))
+        Ok(Self::new(window))
     }
 
     pub fn at_point(point: &CGPoint) -> Result<Option<Self>> {
@@ -218,18 +234,18 @@ impl WindowWrapper<AXUIElement> {
 
 impl Window for WindowWrapper<AXUIElement> {
     fn element(&self) -> &AXUIElement {
-        &self.0
+        &self.element
     }
 }
 
 impl Window for WindowWrapper<&AXUIElement> {
     fn element(&self) -> &AXUIElement {
-        &self.0
+        &self.element
     }
 }
 
 impl<'a> Window for WindowWrapper<ItemRef<'a, AXUIElement>> {
     fn element(&self) -> &AXUIElement {
-        self.0.deref()
+        self.element.deref()
     }
 }
