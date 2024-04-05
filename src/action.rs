@@ -28,8 +28,20 @@ pub enum Action {
     PrevDisplay,
     MoveWindowToNextDisplay,
     MoveWindowToPrevDisplay,
+    MoveWindowToGroup(u8),
+    ShowGroup(u8),
 }
 
+const KEYCODE_0: i64 = 29;
+const KEYCODE_1: i64 = 18;
+const KEYCODE_2: i64 = 19;
+const KEYCODE_3: i64 = 20;
+const KEYCODE_4: i64 = 21;
+const KEYCODE_5: i64 = 23;
+const KEYCODE_6: i64 = 22;
+const KEYCODE_7: i64 = 26;
+const KEYCODE_8: i64 = 28;
+const KEYCODE_9: i64 = 25;
 const KEYCODE_A: i64 = 0;
 const KEYCODE_C: i64 = 8;
 const KEYCODE_F: i64 = 3;
@@ -62,7 +74,7 @@ impl Action {
                 println!("KeyDown ({:?}) {}", mode, keycode);
                 use Action::*;
                 match (mode, flags, keycode, layout) {
-                    (Mode::Insert, _, KEYCODE_A, _) if flags == FLG_SHIFT | FLG_CMD => {
+                    (Mode::Insert, _, KEYCODE_A, _) if flags == FLG_SHIFT | FLG_ALT => {
                         Some(ModeNormal)
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_C, _) => Some(LayoutCascade),
@@ -95,6 +107,26 @@ impl Action {
                     (Mode::Normal, FLG_NULL, KEYCODE_P, _) => Some(PrevDisplay),
                     (Mode::Normal, FLG_ALT, KEYCODE_N, _) => Some(MoveWindowToNextDisplay),
                     (Mode::Normal, FLG_ALT, KEYCODE_P, _) => Some(MoveWindowToPrevDisplay),
+                    (Mode::Normal, FLG_NULL, KEYCODE_0, _) => Some(ShowGroup(0)),
+                    (Mode::Normal, FLG_ALT, KEYCODE_0, _) => Some(MoveWindowToGroup(0)),
+                    (Mode::Normal, FLG_NULL, KEYCODE_1, _) => Some(ShowGroup(1)),
+                    (Mode::Normal, FLG_ALT, KEYCODE_1, _) => Some(MoveWindowToGroup(1)),
+                    (Mode::Normal, FLG_NULL, KEYCODE_2, _) => Some(ShowGroup(2)),
+                    (Mode::Normal, FLG_ALT, KEYCODE_2, _) => Some(MoveWindowToGroup(2)),
+                    (Mode::Normal, FLG_NULL, KEYCODE_3, _) => Some(ShowGroup(3)),
+                    (Mode::Normal, FLG_ALT, KEYCODE_3, _) => Some(MoveWindowToGroup(3)),
+                    (Mode::Normal, FLG_NULL, KEYCODE_4, _) => Some(ShowGroup(4)),
+                    (Mode::Normal, FLG_ALT, KEYCODE_4, _) => Some(MoveWindowToGroup(4)),
+                    (Mode::Normal, FLG_NULL, KEYCODE_5, _) => Some(ShowGroup(5)),
+                    (Mode::Normal, FLG_ALT, KEYCODE_5, _) => Some(MoveWindowToGroup(5)),
+                    (Mode::Normal, FLG_NULL, KEYCODE_6, _) => Some(ShowGroup(6)),
+                    (Mode::Normal, FLG_ALT, KEYCODE_6, _) => Some(MoveWindowToGroup(6)),
+                    (Mode::Normal, FLG_NULL, KEYCODE_7, _) => Some(ShowGroup(7)),
+                    (Mode::Normal, FLG_ALT, KEYCODE_7, _) => Some(MoveWindowToGroup(7)),
+                    (Mode::Normal, FLG_NULL, KEYCODE_8, _) => Some(ShowGroup(8)),
+                    (Mode::Normal, FLG_ALT, KEYCODE_8, _) => Some(MoveWindowToGroup(8)),
+                    (Mode::Normal, FLG_NULL, KEYCODE_9, _) => Some(ShowGroup(9)),
+                    (Mode::Normal, FLG_ALT, KEYCODE_9, _) => Some(MoveWindowToGroup(9)),
                     (Mode::Normal, _, _, _) => Some(ModeInsert),
                     _ => None,
                 }
