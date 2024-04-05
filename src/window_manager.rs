@@ -383,17 +383,29 @@ impl DisplayState {
     }
 
     fn toggle_active_window_in_group(&mut self, g_id: u8) {
-        if Some(g_id) == self.active_group {
-            // Do not remove windows from the active group (potentially
-            // orphaning the window).
-            return;
-        }
         if let Some(w) = self.get_active_window().cloned() {
+            let window_exists_in_another_group = self.groups.iter().any(|(g_id_2, g_2)| {
+                *g_id_2 != g_id && g_2.windows.iter().any(|w_2| w_2.id() == w.id())
+            });
+
             match self.groups.get_mut(&g_id) {
                 Some(g) => {
-                    if !g.windows.iter().any(|w_| w_.id() == w.id()) {
-                        g.windows.insert(0, w);
-                        g.active_window_idx = Some(0);
+                    match g.windows.iter().position(|w_2| w_2.id() == w.id()) {
+                        Some(w_idx) if window_exists_in_another_group => {
+                            // Only remove the window if it is present in another group (prevent
+                            // orphan windows).
+                            g.windows.remove(w_idx);
+                            g.active_window_idx = if g.windows.len() == 0 {
+                                None
+                            } else {
+                                Some(usize::min(w_idx, g.windows.len() - 1))
+                            };
+                        }
+                        Some(_) => (),
+                        None => {
+                            g.windows.insert(0, w);
+                            g.active_window_idx = Some(0);
+                        }
                     }
                 }
                 None => {
