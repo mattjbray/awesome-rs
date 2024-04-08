@@ -5,11 +5,12 @@ use accessibility_sys::kAXWindowRole;
 use anyhow::{anyhow, Result};
 use cocoa::{
     appkit::{
+        NSApplicationActivationOptions::NSApplicationActivateIgnoringOtherApps,
         NSBackingStoreType::NSBackingStoreBuffered, NSColor, NSRunningApplication, NSWindow,
         NSWindowStyleMask,
     },
     base::{id, nil},
-    foundation::{NSPoint, NSRect, NSSize},
+    foundation::{NSPoint, NSRect, NSSize, NSString},
 };
 use core_foundation::{
     array::CFArray,
@@ -159,6 +160,7 @@ pub struct WindowManager {
     displays: HashMap<DisplayID, DisplayState>,
     minimized_windows: Vec<WindowWrapper<AXUIElement>>,
     highlight_overlay_window: Option<id>,
+    status_window: Option<id>,
 }
 
 impl WindowGroup {
@@ -506,6 +508,7 @@ impl WindowManager {
             displays: HashMap::new(),
             minimized_windows: vec![],
             highlight_overlay_window: None,
+            status_window: None,
         }
     }
 
@@ -667,6 +670,7 @@ impl WindowManager {
                 }
             }
         }
+        self.bring_status_window_to_front();
         Ok(())
     }
 
@@ -676,6 +680,49 @@ impl WindowManager {
                 window.close();
             };
             self.highlight_overlay_window = None;
+        }
+    }
+
+    fn open_status_window(&mut self) {
+        self.close_status_window();
+
+        let rect = NSRect::new(NSPoint::new(0., 0.), NSSize::new(300., 200.));
+        unsafe {
+            let window = NSWindow::alloc(nil);
+            window.initWithContentRect_styleMask_backing_defer_(
+                rect,
+                NSWindowStyleMask::NSTitledWindowMask | NSWindowStyleMask::NSClosableWindowMask,
+                NSBackingStoreBuffered,
+                false,
+            );
+            let title = NSString::alloc(nil).init_str("Window Manager");
+            window.setTitle_(title);
+            window.setAlphaValue_(0.7);
+            window.center();
+            self.status_window = Some(window);
+        }
+    }
+
+    fn bring_status_window_to_front(&self) {
+        if let Some(window) = self.status_window {
+            unsafe {
+                window.makeKeyAndOrderFront_(nil);
+                window.makeMainWindow();
+                let app = NSRunningApplication::currentApplication(nil);
+                app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps);
+            }
+        }
+    }
+
+    fn close_status_window(&mut self) {
+        match self.status_window {
+            Some(window) => {
+                unsafe {
+                    window.close();
+                };
+                self.status_window = None;
+            }
+            None => (),
         }
     }
 
@@ -990,12 +1037,14 @@ impl WindowManager {
             ModeNormal => {
                 self.set_mode(Mode::Normal);
                 self.refresh_window_list()?;
+                self.open_status_window();
                 self.highlight_active_window()?;
                 Ok(())
             }
             ModeInsert => {
                 self.set_mode(Mode::Insert);
                 self.close_highlight_window();
+                self.close_status_window();
                 Ok(())
             }
             LayoutFloating => {
