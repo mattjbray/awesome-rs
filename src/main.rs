@@ -10,6 +10,8 @@ use core_graphics::event::{
     CGEventTapOptions, CGEventTapPlacement, CGEventType,
 };
 
+const AWESOME_ENABLE_DRAG_WINDOW: bool = false;
+
 // <ALT>
 fn awesome_normal_mode_drag_window_flags() -> CGEventFlags {
     CGEventFlags::CGEventFlagAlternate
@@ -63,8 +65,7 @@ fn mk_event_tap_callback(
                     dw.set_position_around(&event.location()).unwrap()
                 }
             }
-            FlagsChanged => {
-                // println!("FlagsChanged {:?}", event.get_flags());
+            FlagsChanged if AWESOME_ENABLE_DRAG_WINDOW => {
                 if event
                     .get_flags()
                     .contains(awesome_normal_mode_drag_window_flags())
