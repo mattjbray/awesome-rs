@@ -17,8 +17,7 @@ fn awesome_normal_mode_drag_window_flags() -> CGEventFlags {
 
 fn main() {
     let mut wm = WindowManager::new();
-    wm.refresh_window_list()
-        .expect("Could not get initial window list");
+    let _ = wm.do_action(&Action::RelayoutAll);
     let state: RefCell<WindowManager> = RefCell::new(wm);
 
     let event_tap = {
