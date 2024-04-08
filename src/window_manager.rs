@@ -155,7 +155,7 @@ pub struct WindowManager {
     display_ids: Vec<DisplayID>,
     displays: HashMap<DisplayID, DisplayState>,
     minimized_windows: Vec<WindowWrapper<AXUIElement>>,
-    ns_window: Option<id>,
+    highlight_overlay_window: Option<id>,
 }
 
 impl WindowGroup {
@@ -502,7 +502,7 @@ impl WindowManager {
             display_ids: vec![],
             displays: HashMap::new(),
             minimized_windows: vec![],
-            ns_window: None,
+            highlight_overlay_window: None,
         }
     }
 
@@ -630,53 +630,54 @@ impl WindowManager {
 
     /// Create a window slightly larger than and behind the active window.
     fn highlight_active_window(&mut self) -> Result<()> {
-        self.remove_highlight_window();
-        match self.get_active_window() {
-            Some(w) => {
-                let f = w.frame()?;
-                let outset = 7.;
-                let pos = position_to_origin(&w)?;
-                let size = unsafe { mem::transmute::<CGSize, NSSize>(f.size) };
-                let rect = NSRect::new(pos, size).inset(-outset, -outset);
-
-                unsafe {
-                    let window = NSWindow::alloc(nil);
-                    window.initWithContentRect_styleMask_backing_defer_(
+        if let Some(w) = self.get_active_window() {
+            let f = w.frame()?;
+            let outset = 7.;
+            let pos = position_to_origin(&w)?;
+            let size = unsafe { mem::transmute::<CGSize, NSSize>(f.size) };
+            let rect = NSRect::new(pos, size).inset(-outset, -outset);
+            match self.highlight_overlay_window {
+                None => unsafe {
+                    let overlay = NSWindow::alloc(nil);
+                    overlay.initWithContentRect_styleMask_backing_defer_(
                         rect,
                         NSWindowStyleMask::empty(),
                         NSBackingStoreBuffered,
                         false,
                     );
-                    window.setBackgroundColor_(NSColor::systemRedColor(nil));
-                    window.setAlphaValue_(0.7);
-                    window.makeKeyAndOrderFront_(nil);
-                    self.ns_window = Some(window);
+                    overlay.setBackgroundColor_(NSColor::systemRedColor(nil));
+                    overlay.setAlphaValue_(0.7);
+                    overlay.makeKeyAndOrderFront_(nil);
+                    self.highlight_overlay_window = Some(overlay);
+                },
+                Some(overlay) => {
+                    unsafe {
+                        overlay.setContentSize_(rect.size);
+                        overlay.setFrameOrigin_(rect.origin);
+                        overlay.setContentSize_(rect.size);
+                        overlay.makeKeyAndOrderFront_(nil);
+                    };
                 }
-                Ok(())
             }
-            None => Ok(()),
         }
+        Ok(())
     }
 
-    fn remove_highlight_window(&mut self) {
-        match self.ns_window {
-            Some(window) => {
-                unsafe {
-                    window.close();
-                };
-                self.ns_window = None;
-            }
-            None => (),
+    fn close_highlight_window(&mut self) {
+        if let Some(window) = self.highlight_overlay_window {
+            unsafe {
+                window.close();
+            };
+            self.highlight_overlay_window = None;
         }
     }
 
     fn activate_active_window(&self) -> Result<()> {
         if let Some(w) = self.get_active_window() {
             eprintln!("Activate window {:?}", w);
-            w.activate()
-        } else {
-            Ok(())
+            w.activate()?;
         }
+        Ok(())
     }
 
     fn bring_active_display_group_to_front(&self) -> Result<()> {
@@ -987,7 +988,7 @@ impl WindowManager {
             }
             ModeInsert => {
                 self.set_mode(Mode::Insert);
-                self.remove_highlight_window();
+                self.close_highlight_window();
                 Ok(())
             }
             LayoutFloating => {
