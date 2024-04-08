@@ -51,6 +51,35 @@ pub trait Window {
         Ok(())
     }
 
+    /// Returns true if the other window has the same pid, title, position and
+    /// size.
+    /// Note: if this is insufficient, we could use the private
+    /// _AXUIElementGetWindow API.
+    /// See https://github.com/rxhanson/Rectangle/blob/main/Rectangle/Rectangle-Bridging-Header.h
+    fn is_same_window(&self, other: &Self) -> Result<bool> {
+        let pid = self.element().pid()?;
+        let frame = self.frame()?;
+        let title = self.element().title()?;
+
+        if {
+            let pid2 = other.element().pid()?;
+            pid == pid2
+        } && {
+            let title2 = other.element().title()?;
+            title == title2
+        } && {
+            let frame2 = other.frame()?;
+            frame.origin.x == frame2.origin.x
+                && frame.origin.y == frame2.origin.y
+                && frame.size.width == frame2.size.width
+                && frame.size.height == frame2.size.height
+        } {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     fn position(&self) -> Result<CGPoint> {
         let value = self.element().position()?;
         let point = value.get_value()?;

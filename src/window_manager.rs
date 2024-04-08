@@ -542,18 +542,46 @@ impl WindowManager {
         }
     }
 
+    fn window_exists(&self, window: &WindowWrapper<AXUIElement>) -> Result<bool> {
+        for (_, d) in self.displays.iter() {
+            for (_, g) in d.groups.iter() {
+                for other in g.windows.iter() {
+                    if window.is_same_window(other)? {
+                        return Ok(true);
+                    }
+                }
+            }
+        }
+        Ok(false)
+    }
+
     pub fn refresh_window_list(&mut self) -> Result<()> {
         self.display_ids = CGDisplay::active_displays()
             .map_err(|e| anyhow!(format!("CGDisplay::active_displays {:?}", e)))?;
         let (open_windows, minimized_windows) = get_all_windows()?;
-        for display in self.displays.values_mut() {
-            for group in display.groups.values_mut() {
-                group.windows.clear();
+
+        for (_, d) in self.displays.iter_mut() {
+            for (_, g) in d.groups.iter_mut() {
+                g.windows = g
+                    .windows
+                    .drain(..)
+                    .filter(|w| {
+                        open_windows.iter().any(|w2| {
+                            w.is_same_window(w2).unwrap_or_else(|e| {
+                                eprintln!("is_same_windows: {:?}", e);
+                                false
+                            })
+                        })
+                    })
+                    .collect();
             }
         }
+
         for w in open_windows {
-            let display_id = w.display()?.id;
-            self.insert_open_window(w, display_id);
+            if !self.window_exists(&w)? {
+                let display_id = w.display()?.id;
+                self.insert_open_window(w, display_id);
+            }
         }
         self.minimized_windows = minimized_windows;
         self.refresh_active_window();
