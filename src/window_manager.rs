@@ -4,7 +4,10 @@ use accessibility::{AXUIElement, AXUIElementAttributes};
 use accessibility_sys::kAXWindowRole;
 use anyhow::{anyhow, Result};
 use cocoa::{
-    appkit::{NSBackingStoreType::NSBackingStoreBuffered, NSColor, NSWindow, NSWindowStyleMask},
+    appkit::{
+        NSBackingStoreType::NSBackingStoreBuffered, NSColor, NSRunningApplication, NSWindow,
+        NSWindowStyleMask,
+    },
     base::{id, nil},
     foundation::{NSPoint, NSRect, NSSize},
 };
@@ -577,8 +580,12 @@ impl WindowManager {
             }
         }
 
+        let my_pid = unsafe {
+            let app = NSRunningApplication::currentApplication(nil);
+            app.processIdentifier_()
+        };
         for w in open_windows {
-            if !self.window_exists(&w)? {
+            if w.element().pid()? != my_pid && !self.window_exists(&w)? {
                 let display_id = w.display()?.id;
                 self.insert_open_window(w, display_id);
             }
