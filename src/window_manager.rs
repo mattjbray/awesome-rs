@@ -619,6 +619,15 @@ impl WindowManager {
         println!("Entered {:?} mode", self.mode);
     }
 
+
+    fn maybe_enter_normal_mode(&mut self) -> Result<()> {
+        Ok(if let Mode::Insert = self.mode {
+            self.set_mode(Mode::Normal);
+            self.refresh_window_list()?;
+            // self.open_status_window();
+        })
+    }
+
     fn get_active_display(&self) -> Option<&DisplayState> {
         self.active_display_idx.and_then(|idx| {
             let display_id = self.display_ids[idx];
@@ -1035,9 +1044,7 @@ impl WindowManager {
                 Ok(())
             }
             ModeNormal => {
-                self.set_mode(Mode::Normal);
-                self.refresh_window_list()?;
-                self.open_status_window();
+                self.maybe_enter_normal_mode()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
@@ -1102,12 +1109,14 @@ impl WindowManager {
                 Ok(())
             }
             NextWindow => {
+                self.maybe_enter_normal_mode()?;
                 self.set_next_window_active();
                 self.activate_active_window()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
             PrevWindow => {
+                self.maybe_enter_normal_mode()?;
                 self.set_prev_window_active();
                 self.activate_active_window()?;
                 self.highlight_active_window()?;
@@ -1150,12 +1159,14 @@ impl WindowManager {
                 Ok(())
             }
             NextDisplay => {
+                self.maybe_enter_normal_mode()?;
                 self.set_next_display_active();
                 self.activate_active_window()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
             PrevDisplay => {
+                self.maybe_enter_normal_mode()?;
                 self.set_prev_display_active();
                 self.activate_active_window()?;
                 self.highlight_active_window()?;
@@ -1177,6 +1188,7 @@ impl WindowManager {
                 Ok(())
             }
             ShowGroup(g_idx) => {
+                self.maybe_enter_normal_mode()?;
                 self.set_active_display_group(*g_idx);
                 self.bring_active_display_group_to_front()?;
                 self.activate_active_window()?;
