@@ -3,6 +3,7 @@ use std::{error::Error, fmt::Display, ops::Deref};
 use accessibility::{AXAttribute, AXUIElement, AXUIElementAttributes, AXValue};
 use accessibility_sys::{kAXApplicationRole, kAXCloseButtonAttribute, kAXPressAction};
 use anyhow::Result;
+use cocoa::appkit::{NSApp, NSApplicationActivationOptions, NSRunningApplication};
 use core_foundation::{
     base::{CFType, ItemRef, TCFType},
     boolean::CFBoolean,
@@ -153,17 +154,14 @@ pub trait Window {
 
     /// Bring this window's application to front, and set this window as main.
     fn activate(&self) -> Result<()> {
-        // let pid = self.element().pid()?;
-        // unsafe {
-        //     let app = cocoa::appkit::NSRunningApplication::runningApplicationWithProcessIdentifier(
-        //         NSApp(),
-        //         pid,
-        //     );
-        //     app.activateIgnoringOtherApps_(true);
-        // };
-        let app = self.application()?;
-        app.set_attribute(&AXAttribute::frontmost(), true)?;
         self.element().set_main(true)?;
+        let pid = self.element().pid()?;
+        unsafe {
+            let app = NSRunningApplication::runningApplicationWithProcessIdentifier(NSApp(), pid);
+            app.activateWithOptions_(
+                NSApplicationActivationOptions::NSApplicationActivateIgnoringOtherApps,
+            );
+        };
         Ok(())
     }
 
