@@ -1,3 +1,5 @@
+use std::{cell::RefCell, time::Instant};
+
 use core_graphics::event::{CGEvent, CGEventFlags, CGEventType, EventField};
 
 use crate::{mode::Mode, Layout};
@@ -57,6 +59,7 @@ const KEYCODE_R: i64 = 15;
 const KEYCODE_T: i64 = 17;
 const KEYCODE_X: i64 = 7;
 const KEYCODE_ENT: i64 = 36;
+const KEYCODE_ESC: i64 = 53;
 const FLG_NULL: CGEventFlags = CGEventFlags::CGEventFlagNull;
 const FLG_CTRL: CGEventFlags = CGEventFlags::CGEventFlagControl;
 const FLG_ALT: CGEventFlags = CGEventFlags::CGEventFlagAlternate;
@@ -64,7 +67,12 @@ const FLG_SHIFT: CGEventFlags = CGEventFlags::CGEventFlagShift;
 const FLG_CMD: CGEventFlags = CGEventFlags::CGEventFlagCommand;
 
 impl Action {
-    pub fn of_cg_event(event: &CGEvent, mode: &Mode, layout: Option<&Layout>) -> Option<Self> {
+    pub fn of_cg_event(
+        event: &CGEvent,
+        mode: &Mode,
+        layout: Option<&Layout>,
+        last_esc_keydown: &RefCell<Option<Instant>>,
+    ) -> Option<Self> {
         match event.get_type() {
             CGEventType::KeyDown => {
                 // Extract only relevant flags so we can use (==)
@@ -77,6 +85,16 @@ impl Action {
                 use Action::*;
                 match (mode, flags, keycode, layout) {
                     (Mode::Insert, _, KEYCODE_A, _) if flags == nml_mode_flgs => Some(ModeNormal),
+                    (Mode::Insert, FLG_NULL, KEYCODE_ESC, _) => {
+                        let mut last = last_esc_keydown.borrow_mut();
+                        let now = Instant::now();
+                        let d = last.as_ref().map(|last| now.duration_since(*last));
+                        *last = Some(now);
+                        match d {
+                            Some(d) if d.as_millis() <= 300 => Some(ModeNormal),
+                            _ => None,
+                        }
+                    }
                     (Mode::Normal, FLG_NULL, KEYCODE_C, _) => Some(LayoutCascade),
                     (Mode::Normal, FLG_NULL, KEYCODE_F, _) => Some(LayoutFloating),
                     (Mode::Normal, FLG_ALT, KEYCODE_H, Some(Layout::TileHorizontal(_))) => {

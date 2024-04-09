@@ -1,5 +1,5 @@
-use std::cell::RefCell;
 use std::ffi::c_void;
+use std::{cell::RefCell, time::Instant};
 
 use accessibility::AXUIElement;
 use awesome_rs::{Action, DragWindow, WindowManager};
@@ -21,6 +21,7 @@ fn main() {
     let mut wm = WindowManager::new();
     let _ = wm.do_action(&Action::RelayoutAll);
     let state: RefCell<WindowManager> = RefCell::new(wm);
+    let last_esc_keydown: RefCell<Option<Instant>> = RefCell::new(None);
 
     let event_tap = {
         use CGEventType::*;
@@ -29,7 +30,7 @@ fn main() {
             CGEventTapPlacement::HeadInsertEventTap,
             CGEventTapOptions::Default,
             vec![MouseMoved, FlagsChanged, KeyDown],
-            mk_event_tap_callback(&state),
+            mk_event_tap_callback(&state, &last_esc_keydown),
         )
         .unwrap()
     };
@@ -53,9 +54,10 @@ fn main() {
     }
 }
 
-fn mk_event_tap_callback(
-    state: &RefCell<WindowManager>,
-) -> impl Fn(*const c_void, CGEventType, &CGEvent) -> CGEventTapCallbackResult + '_ {
+fn mk_event_tap_callback<'a>(
+    state: &'a RefCell<WindowManager>,
+    last_esc_keydown: &'a RefCell<Option<Instant>>,
+) -> impl Fn(*const c_void, CGEventType, &CGEvent) -> CGEventTapCallbackResult + 'a {
     use CGEventType::*;
     |_, event_type, event| -> CGEventTapCallbackResult {
         let mut s = state.borrow_mut();
@@ -87,7 +89,7 @@ fn mk_event_tap_callback(
             }
             _ => (),
         };
-        match Action::of_cg_event(&event, &s.mode(), s.layout()) {
+        match Action::of_cg_event(&event, &s.mode(), s.layout(), last_esc_keydown) {
             Some(action) => {
                 s.do_action(&action)
                     .unwrap_or_else(|e| eprintln!("While performing {:?}: {:?}", action, e));

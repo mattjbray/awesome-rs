@@ -500,7 +500,7 @@ impl DisplayState {
 
 impl WindowManager {
     pub fn new() -> Self {
-        WindowManager {
+        Self {
             drag_window: None,
             mode: Mode::Normal,
             active_display_idx: None,
@@ -618,7 +618,6 @@ impl WindowManager {
         self.mode = mode;
         println!("Entered {:?} mode", self.mode);
     }
-
 
     fn maybe_enter_normal_mode(&mut self) -> Result<()> {
         Ok(if let Mode::Insert = self.mode {
