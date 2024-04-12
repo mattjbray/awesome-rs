@@ -563,6 +563,10 @@ impl WindowManager {
     pub fn refresh_window_list(&mut self) -> Result<()> {
         self.display_ids = CGDisplay::active_displays()
             .map_err(|e| anyhow!(format!("CGDisplay::active_displays {:?}", e)))?;
+
+        self.displays
+            .retain(|d_id, _v| self.display_ids.contains(d_id));
+
         let (open_windows, minimized_windows) = get_all_windows()?;
 
         for (_, d) in self.displays.iter_mut() {
