@@ -227,8 +227,7 @@ impl WindowGroup {
     }
 
     fn get_active_window(&self) -> Option<&WindowWrapper<AXUIElement>> {
-        self.active_window_idx
-            .map(|idx| self.windows.get(idx).unwrap())
+        self.active_window_idx.and_then(|idx| self.windows.get(idx))
     }
 
     fn swap_window_prev(&mut self) {
