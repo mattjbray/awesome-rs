@@ -83,6 +83,10 @@ impl Action {
                 let keycode = event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE);
                 // eprintln!("KeyDown ({:?}) {}", mode, keycode);
                 use Action::*;
+                if keycode != KEYCODE_ESC {
+                    let mut last = last_esc_keydown.borrow_mut();
+                    *last = None;
+                }
                 match (mode, flags, keycode, layout) {
                     (Mode::Insert, _, KEYCODE_A, _) if flags == nml_mode_flgs => Some(ModeNormal),
                     (Mode::Insert, FLG_NULL, KEYCODE_ESC, _) => {
