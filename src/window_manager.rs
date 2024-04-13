@@ -5,7 +5,6 @@ use accessibility_sys::kAXWindowRole;
 use anyhow::{anyhow, Result};
 use cocoa::{
     appkit::{
-        NSApplicationActivationOptions::NSApplicationActivateIgnoringOtherApps,
         NSBackingStoreType::NSBackingStoreBuffered, NSColor, NSRunningApplication, NSWindow,
         NSWindowStyleMask,
     },
@@ -626,7 +625,7 @@ impl WindowManager {
         Ok(if let Mode::Insert = self.mode {
             self.set_mode(Mode::Normal);
             self.refresh_window_list()?;
-            // self.open_status_window();
+            self.open_status_window();
         })
     }
 
@@ -717,11 +716,8 @@ impl WindowManager {
     fn bring_status_window_to_front(&self) {
         if let Some(window) = self.status_window {
             unsafe {
-                window.makeKeyAndOrderFront_(nil);
-                window.makeMainWindow();
-                let app = NSRunningApplication::currentApplication(nil);
-                app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps);
-            }
+                window.orderFrontRegardless();
+            };
         }
     }
 
