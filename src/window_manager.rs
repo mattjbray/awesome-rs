@@ -1160,6 +1160,8 @@ impl WindowManager {
                 self.maybe_enter_normal_mode()?;
                 self.set_next_display_active();
                 self.activate_active_window()?;
+                self.close_status_window();
+                self.open_status_window();
                 self.highlight_active_window()?;
                 Ok(())
             }
@@ -1167,6 +1169,8 @@ impl WindowManager {
                 self.maybe_enter_normal_mode()?;
                 self.set_prev_display_active();
                 self.activate_active_window()?;
+                self.close_status_window();
+                self.open_status_window();
                 self.highlight_active_window()?;
                 Ok(())
             }
@@ -1174,6 +1178,8 @@ impl WindowManager {
                 self.move_active_window_to_next_display();
                 self.set_next_display_active();
                 self.relayout_all()?;
+                self.close_status_window();
+                self.open_status_window();
                 self.activate_active_window()?;
                 self.highlight_active_window()?;
                 Ok(())
@@ -1182,6 +1188,8 @@ impl WindowManager {
                 self.move_active_window_to_prev_display();
                 self.set_prev_display_active();
                 self.relayout_all()?;
+                self.close_status_window();
+                self.open_status_window();
                 self.highlight_active_window()?;
                 Ok(())
             }
