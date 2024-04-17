@@ -18,8 +18,7 @@ fn awesome_normal_mode_drag_window_flags() -> CGEventFlags {
 }
 
 fn main() {
-    let mut wm = WindowManager::new();
-    let _ = wm.do_action(&Action::RelayoutAll);
+    let wm = WindowManager::new();
     let state: RefCell<WindowManager> = RefCell::new(wm);
     let last_esc_keydown: RefCell<Option<Instant>> = RefCell::new(None);
 
