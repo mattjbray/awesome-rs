@@ -500,7 +500,7 @@ impl WindowManager {
     pub fn new() -> Self {
         Self {
             drag_window: None,
-            mode: Mode::Normal,
+            mode: Mode::Insert,
             active_display_idx: None,
             display_ids: vec![],
             displays: HashMap::new(),
