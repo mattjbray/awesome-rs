@@ -623,7 +623,6 @@ impl WindowManager {
 
     fn maybe_enter_normal_mode(&mut self) -> Result<()> {
         Ok(if let Mode::Insert = self.mode {
-            self.set_mode(Mode::Normal);
             self.refresh_window_list()?;
             self.open_status_window();
         })
@@ -1042,6 +1041,7 @@ impl WindowManager {
                 Ok(())
             }
             ModeNormal => {
+                self.set_mode(Mode::Normal);
                 self.maybe_enter_normal_mode()?;
                 self.highlight_active_window()?;
                 Ok(())
@@ -1050,6 +1050,13 @@ impl WindowManager {
                 self.set_mode(Mode::Insert);
                 self.close_highlight_window();
                 self.close_status_window();
+                Ok(())
+            }
+            ModeInsertNormal => {
+                self.set_mode(Mode::InsertNormal);
+                self.refresh_window_list()?;
+                self.open_status_window();
+                self.highlight_active_window()?;
                 Ok(())
             }
             LayoutFloating => {

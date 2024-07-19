@@ -8,6 +8,7 @@ use crate::{mode::Mode, Layout};
 pub enum Action {
     ModeNormal,
     ModeInsert,
+    ModeInsertNormal,
     RelayoutAll,
     LayoutFloating,
     LayoutCascade,
@@ -73,13 +74,21 @@ impl Action {
         layout: Option<&Layout>,
         last_esc_keydown: &RefCell<Option<Instant>>,
     ) -> Option<Self> {
+        // Extract only relevant flags so we can use (==)
+        let flags = event
+            .get_flags()
+            .intersection(FLG_CTRL | FLG_ALT | FLG_SHIFT | FLG_CMD);
+        let nml_mode_flgs: CGEventFlags = FLG_ALT | FLG_SHIFT;
         match event.get_type() {
+            CGEventType::FlagsChanged => {
+                // eprintln!("FlagsChanged ({:?}) {:?}", mode, flags);
+                match mode {
+                    Mode::Insert if flags == nml_mode_flgs => Some(Self::ModeInsertNormal),
+                    Mode::InsertNormal if flags != nml_mode_flgs => Some(Self::ModeInsert),
+                    _ => None,
+                }
+            }
             CGEventType::KeyDown => {
-                // Extract only relevant flags so we can use (==)
-                let flags = event
-                    .get_flags()
-                    .intersection(FLG_CTRL | FLG_ALT | FLG_SHIFT | FLG_CMD);
-                let nml_mode_flgs: CGEventFlags = FLG_ALT | FLG_SHIFT;
                 let keycode = event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE);
                 // eprintln!("KeyDown ({:?}) {}", mode, keycode);
                 use Action::*;
@@ -88,7 +97,7 @@ impl Action {
                     *last = None;
                 }
                 match (mode, flags, keycode, layout) {
-                    (Mode::Insert, _, KEYCODE_A, _) if flags == nml_mode_flgs => Some(ModeNormal),
+                    (Mode::InsertNormal, _, KEYCODE_A, _) => Some(ModeNormal),
                     (Mode::Insert, FLG_NULL, KEYCODE_ESC, _) => {
                         let mut last = last_esc_keydown.borrow_mut();
                         let now = Instant::now();
@@ -100,7 +109,9 @@ impl Action {
                         }
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_C, _) => Some(LayoutCascade),
+                    (Mode::InsertNormal, _, KEYCODE_C, _) => Some(LayoutCascade),
                     (Mode::Normal, FLG_NULL, KEYCODE_F, _) => Some(LayoutFloating),
+                    (Mode::InsertNormal, _, KEYCODE_F, _) => Some(LayoutFloating),
                     (Mode::Normal, FLG_ALT, KEYCODE_H, Some(Layout::TileHorizontal(_))) => {
                         Some(IncrPrimaryColWindows)
                     }
@@ -110,30 +121,44 @@ impl Action {
                     (Mode::Normal, FLG_NULL, KEYCODE_H, Some(Layout::TileHorizontal(_))) => {
                         Some(DecrPrimaryColWidth)
                     }
+                    (Mode::InsertNormal, _, KEYCODE_H, Some(Layout::TileHorizontal(_))) => {
+                        Some(DecrPrimaryColWidth)
+                    }
                     (Mode::Normal, FLG_NULL, KEYCODE_L, Some(Layout::TileHorizontal(_))) => {
                         Some(IncrPrimaryColWidth)
                     }
+                    (Mode::InsertNormal, _, KEYCODE_L, Some(Layout::TileHorizontal(_))) => {
+                        Some(IncrPrimaryColWidth)
+                    }
                     (Mode::Normal, FLG_NULL, KEYCODE_H, _) => Some(WindowLeftHalf),
+                    (Mode::InsertNormal, _, KEYCODE_H, _) => Some(WindowLeftHalf),
                     (Mode::Normal, FLG_NULL, KEYCODE_L, _) => Some(WindowRightHalf),
+                    (Mode::InsertNormal, _, KEYCODE_L, _) => Some(WindowRightHalf),
                     (Mode::Normal, FLG_NULL, KEYCODE_M, _) => Some(WindowMinimize),
+                    (Mode::InsertNormal, _, KEYCODE_M, _) => Some(WindowMinimize),
                     (Mode::Normal, FLG_SHIFT, KEYCODE_M, _) => Some(WindowRestore),
                     (Mode::Normal, FLG_NULL, KEYCODE_R, _) => Some(RelayoutAll),
+                    (Mode::InsertNormal, _, KEYCODE_R, _) => Some(RelayoutAll),
                     (Mode::Normal, FLG_NULL, KEYCODE_T, _) => Some(LayoutTiling),
+                    (Mode::InsertNormal, _, KEYCODE_T, _) => Some(LayoutTiling),
                     (Mode::Normal, FLG_ALT, KEYCODE_J, _) => Some(SwapNextWindow),
                     (Mode::Normal, FLG_ALT, KEYCODE_K, _) => Some(SwapPrevWindow),
                     (Mode::Normal, FLG_NULL, KEYCODE_J, _) => Some(NextWindow),
+                    (Mode::InsertNormal, _, KEYCODE_J, _) => Some(NextWindow),
                     (Mode::Normal, FLG_NULL, KEYCODE_K, _) => Some(PrevWindow),
-                    (Mode::Insert, _, KEYCODE_J, _) if flags == nml_mode_flgs => Some(NextWindow),
-                    (Mode::Insert, _, KEYCODE_K, _) if flags == nml_mode_flgs => Some(PrevWindow),
+                    (Mode::InsertNormal, _, KEYCODE_K, _) => Some(PrevWindow),
                     (Mode::Normal, FLG_NULL, KEYCODE_ENT, _) => Some(WindowFull),
+                    (Mode::InsertNormal, _, KEYCODE_ENT, _) => Some(WindowFull),
                     (Mode::Normal, FLG_NULL, KEYCODE_X, _) => Some(WindowClose),
+                    (Mode::InsertNormal, _, KEYCODE_X, _) => Some(WindowClose),
                     (Mode::Normal, FLG_NULL, KEYCODE_N, _) => Some(NextDisplay),
+                    (Mode::InsertNormal, _, KEYCODE_N, _) => Some(NextDisplay),
                     (Mode::Normal, FLG_NULL, KEYCODE_P, _) => Some(PrevDisplay),
+                    (Mode::InsertNormal, _, KEYCODE_P, _) => Some(PrevDisplay),
                     (Mode::Normal, FLG_ALT, KEYCODE_N, _) => Some(MoveWindowToNextDisplay),
                     (Mode::Normal, FLG_ALT, KEYCODE_P, _) => Some(MoveWindowToPrevDisplay),
-                    (Mode::Insert, _, KEYCODE_N, _) if flags == nml_mode_flgs => Some(NextDisplay),
-                    (Mode::Insert, _, KEYCODE_P, _) if flags == nml_mode_flgs => Some(PrevDisplay),
                     (Mode::Normal, FLG_NULL, KEYCODE_0, _) => Some(ShowGroup(0)),
+                    (Mode::InsertNormal, _, KEYCODE_0, _) => Some(ShowGroup(0)),
                     (Mode::Normal, FLG_ALT, KEYCODE_0, _) => Some(MoveWindowToGroup(0)),
                     (Mode::Normal, _, KEYCODE_0, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(ToggleWindowInGroup(0))
@@ -142,6 +167,7 @@ impl Action {
                         Some(ShowGroup(0))
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_1, _) => Some(ShowGroup(1)),
+                    (Mode::InsertNormal, _, KEYCODE_1, _) => Some(ShowGroup(1)),
                     (Mode::Normal, FLG_ALT, KEYCODE_1, _) => Some(MoveWindowToGroup(1)),
                     (Mode::Normal, _, KEYCODE_1, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(ToggleWindowInGroup(1))
@@ -150,6 +176,7 @@ impl Action {
                         Some(ShowGroup(1))
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_2, _) => Some(ShowGroup(2)),
+                    (Mode::InsertNormal, _, KEYCODE_2, _) => Some(ShowGroup(2)),
                     (Mode::Normal, FLG_ALT, KEYCODE_2, _) => Some(MoveWindowToGroup(2)),
                     (Mode::Normal, _, KEYCODE_2, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(ToggleWindowInGroup(2))
@@ -158,6 +185,7 @@ impl Action {
                         Some(ShowGroup(2))
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_3, _) => Some(ShowGroup(3)),
+                    (Mode::InsertNormal, _, KEYCODE_3, _) => Some(ShowGroup(3)),
                     (Mode::Normal, FLG_ALT, KEYCODE_3, _) => Some(MoveWindowToGroup(3)),
                     (Mode::Normal, _, KEYCODE_3, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(ToggleWindowInGroup(3))
@@ -166,6 +194,7 @@ impl Action {
                         Some(ShowGroup(3))
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_4, _) => Some(ShowGroup(4)),
+                    (Mode::InsertNormal, _, KEYCODE_4, _) => Some(ShowGroup(4)),
                     (Mode::Normal, FLG_ALT, KEYCODE_4, _) => Some(MoveWindowToGroup(4)),
                     (Mode::Normal, _, KEYCODE_4, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(ToggleWindowInGroup(4))
@@ -174,6 +203,7 @@ impl Action {
                         Some(ShowGroup(4))
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_5, _) => Some(ShowGroup(5)),
+                    (Mode::InsertNormal, _, KEYCODE_5, _) => Some(ShowGroup(5)),
                     (Mode::Normal, FLG_ALT, KEYCODE_5, _) => Some(MoveWindowToGroup(5)),
                     (Mode::Normal, _, KEYCODE_5, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(ToggleWindowInGroup(5))
@@ -182,6 +212,7 @@ impl Action {
                         Some(ShowGroup(5))
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_6, _) => Some(ShowGroup(6)),
+                    (Mode::InsertNormal, _, KEYCODE_6, _) => Some(ShowGroup(6)),
                     (Mode::Normal, FLG_ALT, KEYCODE_6, _) => Some(MoveWindowToGroup(6)),
                     (Mode::Normal, _, KEYCODE_6, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(ToggleWindowInGroup(6))
@@ -190,6 +221,7 @@ impl Action {
                         Some(ShowGroup(6))
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_7, _) => Some(ShowGroup(7)),
+                    (Mode::InsertNormal, _, KEYCODE_7, _) => Some(ShowGroup(7)),
                     (Mode::Normal, FLG_ALT, KEYCODE_7, _) => Some(MoveWindowToGroup(7)),
                     (Mode::Normal, _, KEYCODE_7, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(ToggleWindowInGroup(7))
@@ -198,6 +230,7 @@ impl Action {
                         Some(ShowGroup(7))
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_8, _) => Some(ShowGroup(8)),
+                    (Mode::InsertNormal, _, KEYCODE_8, _) => Some(ShowGroup(8)),
                     (Mode::Normal, FLG_ALT, KEYCODE_8, _) => Some(MoveWindowToGroup(8)),
                     (Mode::Normal, _, KEYCODE_8, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(ToggleWindowInGroup(8))
@@ -206,6 +239,7 @@ impl Action {
                         Some(ShowGroup(8))
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_9, _) => Some(ShowGroup(9)),
+                    (Mode::InsertNormal, _, KEYCODE_9, _) => Some(ShowGroup(9)),
                     (Mode::Normal, FLG_ALT, KEYCODE_9, _) => Some(MoveWindowToGroup(9)),
                     (Mode::Normal, _, KEYCODE_9, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(ToggleWindowInGroup(9))
