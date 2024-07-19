@@ -1,5 +1,5 @@
+use std::cell::RefCell;
 use std::ffi::c_void;
-use std::{cell::RefCell, time::Instant};
 
 use accessibility::AXUIElement;
 use awesome_rs::{Action, DragWindow, WindowManager};
@@ -20,7 +20,6 @@ fn awesome_normal_mode_drag_window_flags() -> CGEventFlags {
 fn main() {
     let wm = WindowManager::new();
     let state: RefCell<WindowManager> = RefCell::new(wm);
-    let last_esc_keydown: RefCell<Option<Instant>> = RefCell::new(None);
 
     let event_tap = {
         use CGEventType::*;
@@ -29,7 +28,7 @@ fn main() {
             CGEventTapPlacement::HeadInsertEventTap,
             CGEventTapOptions::Default,
             vec![MouseMoved, FlagsChanged, KeyDown],
-            mk_event_tap_callback(&state, &last_esc_keydown),
+            mk_event_tap_callback(&state),
         )
         .unwrap()
     };
@@ -55,7 +54,6 @@ fn main() {
 
 fn mk_event_tap_callback<'a>(
     state: &'a RefCell<WindowManager>,
-    last_esc_keydown: &'a RefCell<Option<Instant>>,
 ) -> impl Fn(*const c_void, CGEventType, &CGEvent) -> CGEventTapCallbackResult + 'a {
     use CGEventType::*;
     |_, event_type, event| -> CGEventTapCallbackResult {
@@ -88,7 +86,7 @@ fn mk_event_tap_callback<'a>(
             }
             _ => (),
         };
-        match Action::of_cg_event(&event, &s.mode(), s.layout(), last_esc_keydown) {
+        match Action::of_cg_event(&event, &s.mode(), s.layout()) {
             Some(action) => {
                 s.do_action(&action)
                     .unwrap_or_else(|e| eprintln!("While performing {:?}: {:?}", action, e));
