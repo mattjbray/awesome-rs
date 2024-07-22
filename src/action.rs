@@ -54,6 +54,7 @@ const KEYCODE_L: i64 = 37;
 const KEYCODE_M: i64 = 46;
 const KEYCODE_N: i64 = 45;
 const KEYCODE_P: i64 = 35;
+const KEYCODE_Q: i64 = 12;
 const KEYCODE_R: i64 = 15;
 const KEYCODE_T: i64 = 17;
 const KEYCODE_X: i64 = 7;
@@ -226,7 +227,7 @@ impl Action {
                     (Mode::Insert, _, KEYCODE_9, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(ShowGroup(9))
                     }
-                    (Mode::Normal, _, KEYCODE_ESC, _) => Some(ModeInsert),
+                    (Mode::Normal, _, KEYCODE_ESC | KEYCODE_Q, _) => Some(ModeInsert),
                     _ => None,
                 }
             }
