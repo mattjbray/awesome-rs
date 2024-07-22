@@ -779,16 +779,8 @@ impl WindowManager {
             window.setTitle_(title);
             window.setAlphaValue_(0.7);
             window.center();
-            let text_field = NSTextField::alloc(nil);
-            NSTextField::initWithFrame_(
-                text_field,
-                NSRect::new(NSPoint::new(0., 0.), NSSize::new(300., 200.)),
-            );
-            let text = NSString::alloc(nil).init_str(&self.describe_displays());
-            text_field.setStringValue_(text);
-            text_field.setEditable_(false);
-            window.contentView().addSubview_(text_field);
             self.status_window = Some(window);
+            self.update_status_window_content();
         }
     }
 
