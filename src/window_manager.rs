@@ -5,8 +5,8 @@ use accessibility_sys::kAXWindowRole;
 use anyhow::{anyhow, Result};
 use cocoa::{
     appkit::{
-        NSBackingStoreType::NSBackingStoreBuffered, NSColor, NSRunningApplication, NSWindow,
-        NSWindowStyleMask,
+        NSBackingStoreType::NSBackingStoreBuffered, NSColor, NSRunningApplication, NSTextField,
+        NSView, NSWindow, NSWindowStyleMask,
     },
     base::{id, nil},
     foundation::{NSPoint, NSRect, NSSize, NSString},
@@ -695,6 +695,57 @@ impl WindowManager {
     fn open_status_window(&mut self) {
         self.close_status_window();
 
+        let mut content = String::new();
+
+        let mut is_first = true;
+
+        for (display_id, display) in self.displays.iter() {
+            let is_active = self
+                .active_display_idx
+                .map_or(false, |idx| self.display_ids[idx] == *display_id);
+            if is_first {
+                is_first = false;
+            } else {
+                content.push('\n');
+            }
+            if is_active {
+                content.push_str("[x] ");
+            } else {
+                content.push_str("[ ] ");
+            }
+            content.push_str(&format!("Display {}", display_id));
+            let group_ids: Vec<_> = display.groups.keys().collect();
+            // for (group_num, group) in display.groups.iter() {
+            for &group_id in group_ids.iter() {
+                if let Some(group) = display.groups.get(group_id) {
+                    content.push_str("\n  ");
+                    let is_active = display.active_group.map_or(false, |id| id == *group_id);
+                    if is_active {
+                        content.push_str("[x] ");
+                    } else {
+                        content.push_str("[ ] ");
+                    }
+                    content.push_str(&format!("Group {}", group_id));
+                    for (i, window) in group.windows.iter().enumerate() {
+                        content.push_str("\n    ");
+                        let is_active = group.active_window_idx.map_or(false, |idx| idx == i);
+                        if is_active {
+                            content.push_str("[x] ");
+                        } else {
+                            content.push_str("[ ] ");
+                        }
+                        let title = window
+                            .element()
+                            .title()
+                            .map(|cfstring| cfstring.to_string())
+                            .unwrap_or("<Unkown>".to_string());
+                        let title: String = title.chars().take(45).collect();
+                        content.push_str(&format!("{}", title));
+                    }
+                }
+            }
+        }
+
         let rect = NSRect::new(NSPoint::new(0., 0.), NSSize::new(300., 200.));
         unsafe {
             let window = NSWindow::alloc(nil);
@@ -708,6 +759,15 @@ impl WindowManager {
             window.setTitle_(title);
             window.setAlphaValue_(0.7);
             window.center();
+            let text_field = NSTextField::alloc(nil);
+            NSTextField::initWithFrame_(
+                text_field,
+                NSRect::new(NSPoint::new(0., 0.), NSSize::new(300., 200.)),
+            );
+            let text = NSString::alloc(nil).init_str(&content);
+            text_field.setStringValue_(text);
+            text_field.setEditable_(false);
+            window.contentView().addSubview_(text_field);
             self.status_window = Some(window);
         }
     }
