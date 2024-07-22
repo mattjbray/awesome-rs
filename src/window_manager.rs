@@ -692,9 +692,7 @@ impl WindowManager {
         }
     }
 
-    fn open_status_window(&mut self) {
-        self.close_status_window();
-
+    fn describe_displays(&self) -> String {
         let mut content = String::new();
 
         let mut is_first = true;
@@ -745,6 +743,11 @@ impl WindowManager {
                 }
             }
         }
+        return content;
+    }
+
+    fn open_status_window(&mut self) {
+        self.close_status_window();
 
         let rect = NSRect::new(NSPoint::new(0., 0.), NSSize::new(300., 200.));
         unsafe {
@@ -764,7 +767,7 @@ impl WindowManager {
                 text_field,
                 NSRect::new(NSPoint::new(0., 0.), NSSize::new(300., 200.)),
             );
-            let text = NSString::alloc(nil).init_str(&content);
+            let text = NSString::alloc(nil).init_str(&self.describe_displays());
             text_field.setStringValue_(text);
             text_field.setEditable_(false);
             window.contentView().addSubview_(text_field);
