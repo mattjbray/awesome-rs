@@ -698,7 +698,7 @@ impl WindowManager {
         let mut is_first = true;
 
         for (display_id, display) in self.displays.iter() {
-            let is_active = self
+            let display_is_active = self
                 .active_display_idx
                 .map_or(false, |idx| self.display_ids[idx] == *display_id);
             if is_first {
@@ -706,7 +706,7 @@ impl WindowManager {
             } else {
                 content.push('\n');
             }
-            if is_active {
+            if display_is_active {
                 content.push_str("[x] ");
             } else {
                 content.push_str("[ ] ");
@@ -717,8 +717,8 @@ impl WindowManager {
             for &group_id in group_ids.iter() {
                 if let Some(group) = display.groups.get(group_id) {
                     content.push_str("\n  ");
-                    let is_active = display.active_group.map_or(false, |id| id == *group_id);
-                    if is_active {
+                    let group_is_active = display.active_group.map_or(false, |id| id == *group_id);
+                    if display_is_active && group_is_active {
                         content.push_str("[x] ");
                     } else {
                         content.push_str("[ ] ");
@@ -726,8 +726,9 @@ impl WindowManager {
                     content.push_str(&format!("Group {}", group_id));
                     for (i, window) in group.windows.iter().enumerate() {
                         content.push_str("\n    ");
-                        let is_active = group.active_window_idx.map_or(false, |idx| idx == i);
-                        if is_active {
+                        let window_is_active =
+                            group.active_window_idx.map_or(false, |idx| idx == i);
+                        if display_is_active && group_is_active && window_is_active {
                             content.push_str("[x] ");
                         } else {
                             content.push_str("[ ] ");
