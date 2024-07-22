@@ -746,6 +746,22 @@ impl WindowManager {
         return content;
     }
 
+    fn update_status_window_content(&self) {
+        if let Some(window) = self.status_window {
+            unsafe {
+                let text_field = NSTextField::alloc(nil);
+                NSTextField::initWithFrame_(
+                    text_field,
+                    NSRect::new(NSPoint::new(0., 0.), NSSize::new(300., 200.)),
+                );
+                let text = NSString::alloc(nil).init_str(&self.describe_displays());
+                text_field.setStringValue_(text);
+                text_field.setEditable_(false);
+                window.contentView().addSubview_(text_field);
+            }
+        }
+    }
+
     fn open_status_window(&mut self) {
         self.close_status_window();
 
@@ -1180,6 +1196,7 @@ impl WindowManager {
                 self.maybe_enter_normal_mode()?;
                 self.set_next_window_active();
                 self.activate_active_window()?;
+                self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
@@ -1187,18 +1204,21 @@ impl WindowManager {
                 self.maybe_enter_normal_mode()?;
                 self.set_prev_window_active();
                 self.activate_active_window()?;
+                self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
             SwapNextWindow => {
                 self.swap_window_next();
                 self.relayout()?;
+                self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
             SwapPrevWindow => {
                 self.swap_window_prev();
                 self.relayout()?;
+                self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
@@ -1269,6 +1289,7 @@ impl WindowManager {
                 self.bring_active_display_group_to_front()?;
                 self.activate_active_window()?;
                 self.relayout()?;
+                self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
@@ -1276,6 +1297,7 @@ impl WindowManager {
                 self.move_active_window_to_group(*g_id);
                 self.activate_active_window()?;
                 self.relayout()?;
+                self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
@@ -1283,6 +1305,7 @@ impl WindowManager {
                 self.toggle_active_window_in_group(*g_id);
                 self.activate_active_window()?;
                 self.relayout()?;
+                self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
