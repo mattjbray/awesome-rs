@@ -907,6 +907,42 @@ impl WindowManager {
         }
     }
 
+    fn next_group_id(&self) -> Option<u8> {
+        if let Some(ds) = self.get_active_display() {
+            if let Some(g_id) = ds.active_group {
+                let next_gid = if g_id >= 9 { 0 } else { g_id + 1 };
+                return Some(next_gid);
+            }
+        }
+        return None;
+    }
+
+    fn prev_group_id(&self) -> Option<u8> {
+        if let Some(ds) = self.get_active_display() {
+            if let Some(g_id) = ds.active_group {
+                let prev_gid = if g_id <= 0 { 9 } else { g_id - 1 };
+                return Some(prev_gid);
+            }
+        }
+        return None;
+    }
+
+    fn move_active_window_to_next_group(&mut self) {
+        if let Some(next_gid) = self.next_group_id() {
+            if let Some(ds) = self.get_active_display_mut() {
+                ds.move_active_window_to_group(next_gid)
+            }
+        }
+    }
+
+    fn move_active_window_to_prev_group(&mut self) {
+        if let Some(prev_gid) = self.prev_group_id() {
+            if let Some(ds) = self.get_active_display_mut() {
+                ds.move_active_window_to_group(prev_gid)
+            }
+        }
+    }
+
     fn toggle_active_window_in_group(&mut self, g_id: u8) {
         if let Some(ds) = self.get_active_display_mut() {
             ds.toggle_active_window_in_group(g_id)
@@ -1103,6 +1139,22 @@ impl WindowManager {
         }
     }
 
+    fn set_active_display_group_next(&mut self) {
+        if let Some(next_gid) = self.next_group_id() {
+            if let Some(ds) = self.get_active_display_mut() {
+                ds.set_active_group(next_gid);
+            }
+        }
+    }
+
+    fn set_active_display_group_prev(&mut self) {
+        if let Some(prev_gid) = self.prev_group_id() {
+            if let Some(ds) = self.get_active_display_mut() {
+                ds.set_active_group(prev_gid);
+            }
+        }
+    }
+
     pub fn do_action(&mut self, action: &Action) -> Result<()> {
         use Action::*;
         match action {
@@ -1277,7 +1329,6 @@ impl WindowManager {
                 Ok(())
             }
             ShowGroup(g_idx) => {
-                self.maybe_enter_normal_mode()?;
                 self.set_active_display_group(*g_idx);
                 self.bring_active_display_group_to_front()?;
                 self.activate_active_window()?;
@@ -1296,6 +1347,40 @@ impl WindowManager {
             }
             ToggleWindowInGroup(g_id) => {
                 self.toggle_active_window_in_group(*g_id);
+                self.activate_active_window()?;
+                self.relayout()?;
+                self.update_status_window_content();
+                self.highlight_active_window()?;
+                Ok(())
+            }
+            NextGroup => {
+                self.set_active_display_group_next();
+                self.bring_active_display_group_to_front()?;
+                self.activate_active_window()?;
+                self.relayout()?;
+                self.update_status_window_content();
+                self.highlight_active_window()?;
+                Ok(())
+            }
+            PrevGroup => {
+                self.set_active_display_group_prev();
+                self.bring_active_display_group_to_front()?;
+                self.activate_active_window()?;
+                self.relayout()?;
+                self.update_status_window_content();
+                self.highlight_active_window()?;
+                Ok(())
+            }
+            MoveWindowToNextGroup => {
+                self.move_active_window_to_next_group();
+                self.activate_active_window()?;
+                self.relayout()?;
+                self.update_status_window_content();
+                self.highlight_active_window()?;
+                Ok(())
+            }
+            MoveWindowToPrevGroup => {
+                self.move_active_window_to_prev_group();
                 self.activate_active_window()?;
                 self.relayout()?;
                 self.update_status_window_content();

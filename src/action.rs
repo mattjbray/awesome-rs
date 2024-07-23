@@ -32,6 +32,10 @@ pub enum Action {
     MoveWindowToGroup(u8),
     ToggleWindowInGroup(u8),
     ShowGroup(u8),
+    NextGroup,
+    PrevGroup,
+    MoveWindowToNextGroup,
+    MoveWindowToPrevGroup,
 }
 
 const KEYCODE_0: i64 = 29;
@@ -48,11 +52,13 @@ const KEYCODE_A: i64 = 0;
 const KEYCODE_C: i64 = 8;
 const KEYCODE_F: i64 = 3;
 const KEYCODE_H: i64 = 4;
+const KEYCODE_I: i64 = 34;
 const KEYCODE_J: i64 = 38;
 const KEYCODE_K: i64 = 40;
 const KEYCODE_L: i64 = 37;
 const KEYCODE_M: i64 = 46;
 const KEYCODE_N: i64 = 45;
+const KEYCODE_O: i64 = 31;
 const KEYCODE_P: i64 = 35;
 const KEYCODE_Q: i64 = 12;
 const KEYCODE_R: i64 = 15;
@@ -137,6 +143,12 @@ impl Action {
                     (Mode::InsertNormal, _, KEYCODE_P, _) => Some(PrevDisplay),
                     (Mode::Normal, FLG_ALT, KEYCODE_N, _) => Some(MoveWindowToNextDisplay),
                     (Mode::Normal, FLG_ALT, KEYCODE_P, _) => Some(MoveWindowToPrevDisplay),
+                    (Mode::Normal, FLG_NULL, KEYCODE_I, _) => Some(PrevGroup),
+                    (Mode::InsertNormal, _, KEYCODE_I, _) => Some(PrevGroup),
+                    (Mode::Normal, FLG_NULL, KEYCODE_O, _) => Some(NextGroup),
+                    (Mode::InsertNormal, _, KEYCODE_O, _) => Some(NextGroup),
+                    (Mode::Normal, FLG_ALT, KEYCODE_I, _) => Some(MoveWindowToPrevGroup),
+                    (Mode::Normal, FLG_ALT, KEYCODE_O, _) => Some(MoveWindowToNextGroup),
                     (Mode::Normal, FLG_NULL, KEYCODE_0, _) => Some(ShowGroup(0)),
                     (Mode::InsertNormal, _, KEYCODE_0, _) => Some(ShowGroup(0)),
                     (Mode::Normal, FLG_ALT, KEYCODE_0, _) => Some(MoveWindowToGroup(0)),
