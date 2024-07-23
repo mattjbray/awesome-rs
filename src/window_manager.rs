@@ -923,11 +923,55 @@ impl WindowManager {
         None
     }
 
+    fn next_group_id_with_windows(&self) -> Option<u8> {
+        if let Some(ds) = self.get_active_display() {
+            if let Some(active_gid) = ds.active_group {
+                let mut g_ids: Vec<_> = ds.groups.keys().collect();
+                g_ids.sort();
+                return match g_ids.iter().skip_while(|&&&id| id <= active_gid).next() {
+                    Some(&&next_g_id) => Some(next_g_id),
+                    None => g_ids
+                        .iter()
+                        .skip_while(|&&&id| id == active_gid)
+                        .next()
+                        .copied()
+                        .copied(),
+                };
+            }
+        }
+        None
+    }
+
     fn prev_group_id(&self) -> Option<u8> {
         if let Some(ds) = self.get_active_display() {
             if let Some(g_id) = ds.active_group {
                 let prev_gid = if g_id <= 0 { 9 } else { g_id - 1 };
                 return Some(prev_gid);
+            }
+        }
+        None
+    }
+
+    fn prev_group_id_with_windows(&self) -> Option<u8> {
+        if let Some(ds) = self.get_active_display() {
+            if let Some(active_gid) = ds.active_group {
+                let mut g_ids: Vec<_> = ds.groups.keys().collect();
+                g_ids.sort();
+                return match g_ids
+                    .iter()
+                    .rev()
+                    .skip_while(|&&&id| id >= active_gid)
+                    .next()
+                {
+                    Some(&&next_g_id) => Some(next_g_id),
+                    None => g_ids
+                        .iter()
+                        .rev()
+                        .skip_while(|&&&id| id == active_gid)
+                        .next()
+                        .copied()
+                        .copied(),
+                };
             }
         }
         None
@@ -1153,12 +1197,32 @@ impl WindowManager {
         }
     }
 
+    fn set_active_display_group_next_with_windows(&mut self) -> bool {
+        if let Some(next_gid) = self.next_group_id_with_windows() {
+            if let Some(ds) = self.get_active_display_mut() {
+                ds.set_active_group(next_gid);
+                return true;
+            }
+        }
+        false
+    }
+
     fn set_active_display_group_prev(&mut self) {
         if let Some(prev_gid) = self.prev_group_id() {
             if let Some(ds) = self.get_active_display_mut() {
                 ds.set_active_group(prev_gid);
             }
         }
+    }
+
+    fn set_active_display_group_prev_with_windows(&mut self) -> bool {
+        if let Some(prev_gid) = self.prev_group_id_with_windows() {
+            if let Some(ds) = self.get_active_display_mut() {
+                ds.set_active_group(prev_gid);
+                return true;
+            }
+        }
+        false
     }
 
     pub fn do_action(&mut self, action: &Action) -> Result<()> {
@@ -1360,21 +1424,23 @@ impl WindowManager {
                 Ok(())
             }
             NextGroup => {
-                self.set_active_display_group_next();
-                self.bring_active_display_group_to_front()?;
-                self.activate_active_window()?;
-                self.relayout()?;
-                self.update_status_window_content();
-                self.highlight_active_window()?;
+                if self.set_active_display_group_next_with_windows() {
+                    self.bring_active_display_group_to_front()?;
+                    self.activate_active_window()?;
+                    self.relayout()?;
+                    self.update_status_window_content();
+                    self.highlight_active_window()?;
+                }
                 Ok(())
             }
             PrevGroup => {
-                self.set_active_display_group_prev();
-                self.bring_active_display_group_to_front()?;
-                self.activate_active_window()?;
-                self.relayout()?;
-                self.update_status_window_content();
-                self.highlight_active_window()?;
+                if self.set_active_display_group_prev_with_windows() {
+                    self.bring_active_display_group_to_front()?;
+                    self.activate_active_window()?;
+                    self.relayout()?;
+                    self.update_status_window_content();
+                    self.highlight_active_window()?;
+                }
                 Ok(())
             }
             MoveWindowToNextGroup => {
