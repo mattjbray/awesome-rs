@@ -365,8 +365,11 @@ impl DisplayState {
     }
 
     fn pop_active_window(&mut self) -> Option<WindowWrapper<AXUIElement>> {
-        self.get_active_group_mut()
-            .and_then(|g| g.pop_active_window())
+        let window = self
+            .get_active_group_mut()
+            .and_then(|g| g.pop_active_window());
+        self.groups.retain(|_g_id, g| !g.windows.is_empty());
+        window
     }
 
     fn move_active_window_to_group(&mut self, g_id: u8) {
