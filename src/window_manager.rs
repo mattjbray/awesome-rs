@@ -159,7 +159,7 @@ pub struct WindowManager {
     displays: HashMap<DisplayID, DisplayState>,
     minimized_windows: Vec<WindowWrapper<AXUIElement>>,
     highlight_overlay_window: Option<id>,
-    status_window: Option<id>,
+    status_window: Option<(id, id)>,
 }
 
 impl WindowGroup {
@@ -748,21 +748,14 @@ impl WindowManager {
                 }
             }
         }
-        return content;
+        content
     }
 
     fn update_status_window_content(&self) {
-        if let Some(window) = self.status_window {
+        if let Some((_window, text_field)) = self.status_window {
             unsafe {
-                let text_field = NSTextField::alloc(nil);
-                NSTextField::initWithFrame_(
-                    text_field,
-                    NSRect::new(NSPoint::new(0., 0.), NSSize::new(300., 200.)),
-                );
                 let text = NSString::alloc(nil).init_str(&self.describe_displays());
                 text_field.setStringValue_(text);
-                text_field.setEditable_(false);
-                window.contentView().addSubview_(text_field);
             }
         }
     }
@@ -783,13 +776,22 @@ impl WindowManager {
             window.setTitle_(title);
             window.setAlphaValue_(0.7);
             window.center();
-            self.status_window = Some(window);
+
+            let text_field = NSTextField::alloc(nil);
+            NSTextField::initWithFrame_(
+                text_field,
+                NSRect::new(NSPoint::new(0., 0.), NSSize::new(300., 200.)),
+            );
+            text_field.setEditable_(false);
+            window.contentView().addSubview_(text_field);
+
+            self.status_window = Some((window, text_field));
             self.update_status_window_content();
         }
     }
 
     fn bring_status_window_to_front(&self) {
-        if let Some(window) = self.status_window {
+        if let Some((window, _)) = self.status_window {
             unsafe {
                 window.orderFrontRegardless();
             };
@@ -798,7 +800,7 @@ impl WindowManager {
 
     fn close_status_window(&mut self) {
         match self.status_window {
-            Some(window) => {
+            Some((window, _)) => {
                 unsafe {
                     window.close();
                 };
