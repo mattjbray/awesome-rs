@@ -712,12 +712,10 @@ impl WindowManager {
                 content.push_str("[ ] ");
             }
             content.push_str(&format!("Display {}", display_id));
-            let group_ids: Vec<_> = display.groups.keys().collect();
-            // for (group_num, group) in display.groups.iter() {
-            for &group_id in group_ids.iter() {
-                if let Some(group) = display.groups.get(group_id) {
+            for group_id in 0..=9 {
+                if let Some(group) = display.groups.get(&group_id) {
                     content.push_str("\n  ");
-                    let group_is_active = display.active_group.map_or(false, |id| id == *group_id);
+                    let group_is_active = display.active_group.map_or(false, |id| id == group_id);
                     if display_is_active && group_is_active {
                         content.push_str("[x] ");
                     } else {
@@ -741,6 +739,9 @@ impl WindowManager {
                         let title: String = title.chars().take(45).collect();
                         content.push_str(&format!("{}", title));
                     }
+                } else if Some(group_id) == display.active_group {
+                    // Group is active, but contains no windows
+                    content.push_str(&format!("\n  [x] Group {}", group_id));
                 }
             }
         }
