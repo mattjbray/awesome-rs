@@ -918,7 +918,7 @@ impl WindowManager {
                 return Some(next_gid);
             }
         }
-        return None;
+        None
     }
 
     fn prev_group_id(&self) -> Option<u8> {
@@ -928,7 +928,7 @@ impl WindowManager {
                 return Some(prev_gid);
             }
         }
-        return None;
+        None
     }
 
     fn move_active_window_to_next_group(&mut self) {
