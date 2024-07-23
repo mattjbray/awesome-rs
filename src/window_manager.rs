@@ -54,7 +54,7 @@ fn get_window_pids(on_screen_only: bool) -> Result<Vec<i64>> {
             layer.to_i32() == Some(0)
         })
         .filter_map(|d| {
-            eprintln!("{:?}", d);
+            // eprintln!("{:?}", d);
             let k: CFString = unsafe { CFString::wrap_under_create_rule(kCGWindowOwnerPID) };
             let pid = d.get(k.to_void());
             let pid = unsafe { CFNumber::from_void(*pid) };
@@ -112,8 +112,8 @@ fn get_all_windows() -> Result<(
         }
     }
 
-    eprintln!("open windows: {:?}", open_windows);
-    eprintln!("minimized windows: {:?}", minimized_windows);
+    // eprintln!("open windows: {:?}", open_windows);
+    // eprintln!("minimized windows: {:?}", minimized_windows);
 
     Ok((open_windows, minimized_windows))
 }
