@@ -725,7 +725,12 @@ impl WindowManager {
                         content.push_str("[ ] ");
                     }
                     content.push_str(&format!("Group {}", group_id));
-                    for (i, window) in group.windows.iter().enumerate() {
+                    let iter = group.windows.iter().enumerate();
+                    let iter: Box<dyn Iterator<Item = _>> = match group.layout {
+                        Layout::TileHorizontal(_) => Box::new(iter),
+                        Layout::Cascade | Layout::Floating => Box::new(iter.rev()),
+                    };
+                    for (i, window) in iter {
                         content.push_str("\n    ");
                         let window_is_active =
                             group.active_window_idx.map_or(false, |idx| idx == i);
