@@ -33,6 +33,32 @@ use crate::{
     CGErrorWrapper,
 };
 
+static _HELP_TEXT: &str = "
+| mode | keys                   | action                    |
++------+-[modes]----------------+---------------------------+
+| I    | <opt>+<shift> (hold)   | transient mode (T)        |
+| T    | <opt>+<shift>+a        | normal mode (N)           |
+| N    | <esc>/q                | insert mode (I)           |
++------+-[layouts]--------------+---------------------------+
+| T/N  | t                      | tiling layout             |
+| T/N  | f                      | floating layout           |
+| T/N  | c                      | cascade layout            |
++------+-[motions]--------------+---------------------------+
+| T/N  | j/k                    | window                    |
+| T/N  | i/o/0-9                | group                     |
+| T/N  | n/p                    | display                   |
++------+-[window commands]------+---------------------------+
+| N    | <opt>+[motion]         | move                      |
+| N    | <opt>+<shift>+[motion] | move and follow           |
+| N    | <cmd>+[0-9]            | toggle group              |
+| T/N  | <ret>                  | fullscreen                |
+| T/N  | m/M                    | minimize/restore          |
+| T/N  | h/l                    | window left/right half    |
++------+-[tiling commands]------+---------------------------+
+| T/N  | h/l                    | adjust split width        |
+| T/N  | <opt>+h/l              | number of primary windows |
+";
+
 fn get_window_pids(on_screen_only: bool) -> Result<Vec<i64>> {
     let opts = kCGWindowListExcludeDesktopElements;
     let opts = if on_screen_only {
