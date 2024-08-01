@@ -724,7 +724,7 @@ impl WindowManager {
                     } else {
                         content.push_str("[ ] ");
                     }
-                    content.push_str(&format!("Group {}", group_id));
+                    content.push_str(&format!("Group {} ({})", group_id, group.layout));
                     let iter = group.windows.iter().enumerate();
                     let iter: Box<dyn Iterator<Item = _>> = match group.layout {
                         Layout::TileHorizontal(_) => Box::new(iter),

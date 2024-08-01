@@ -140,3 +140,14 @@ impl Layout {
         Ok(())
     }
 }
+
+impl std::fmt::Display for Layout {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            Layout::Cascade => "cascade",
+            Layout::Floating => "floating",
+            Layout::TileHorizontal(_) => "tiling",
+        };
+        write!(f, "{}", str)
+    }
+}
