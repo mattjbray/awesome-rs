@@ -1258,18 +1258,21 @@ impl WindowManager {
             LayoutFloating => {
                 self.set_layout_floating();
                 self.relayout()?;
+                self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
             LayoutCascade => {
                 self.set_layout_cascade();
                 self.relayout()?;
+                self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
             LayoutTiling => {
                 self.set_layout_tile_horizontal();
                 self.relayout()?;
+                self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
