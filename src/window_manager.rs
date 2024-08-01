@@ -1381,20 +1381,25 @@ impl WindowManager {
             }
             MoveWindowToNextDisplay => {
                 self.move_active_window_to_next_display();
-                self.set_next_display_active();
-                self.relayout_all()?;
-                self.close_status_window();
-                self.open_status_window();
+                // self.set_next_display_active();
+                // self.relayout_all()?;
+                // self.close_status_window();
+                // self.open_status_window();
                 self.activate_active_window()?;
+                self.relayout()?;
+                self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
             MoveWindowToPrevDisplay => {
                 self.move_active_window_to_prev_display();
-                self.set_prev_display_active();
-                self.relayout_all()?;
-                self.close_status_window();
-                self.open_status_window();
+                // self.set_prev_display_active();
+                // self.relayout_all()?;
+                // self.close_status_window();
+                // self.open_status_window();
+                self.activate_active_window()?;
+                self.relayout()?;
+                self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
@@ -1445,8 +1450,8 @@ impl WindowManager {
             }
             MoveWindowToNextGroup => {
                 self.move_active_window_to_next_group();
-                self.set_active_display_group_next();
-                self.bring_active_display_group_to_front()?;
+                // self.set_active_display_group_next();
+                // self.bring_active_display_group_to_front()?;
                 self.activate_active_window()?;
                 self.relayout()?;
                 self.update_status_window_content();
@@ -1455,8 +1460,8 @@ impl WindowManager {
             }
             MoveWindowToPrevGroup => {
                 self.move_active_window_to_prev_group();
-                self.set_active_display_group_prev();
-                self.bring_active_display_group_to_front()?;
+                // self.set_active_display_group_prev();
+                // self.bring_active_display_group_to_front()?;
                 self.activate_active_window()?;
                 self.relayout()?;
                 self.update_status_window_content();
