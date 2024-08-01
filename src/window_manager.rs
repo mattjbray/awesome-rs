@@ -763,7 +763,7 @@ impl WindowManager {
     fn open_status_window(&mut self) {
         self.close_status_window();
 
-        let rect = NSRect::new(NSPoint::new(0., 0.), NSSize::new(300., 200.));
+        let rect = NSRect::new(NSPoint::new(0., 0.), NSSize::new(300., 300.));
         unsafe {
             let window = NSWindow::alloc(nil);
             window.initWithContentRect_styleMask_backing_defer_(
@@ -778,10 +778,7 @@ impl WindowManager {
             window.center();
 
             let text_field = NSTextField::alloc(nil);
-            NSTextField::initWithFrame_(
-                text_field,
-                NSRect::new(NSPoint::new(0., 0.), NSSize::new(300., 200.)),
-            );
+            NSTextField::initWithFrame_(text_field, rect);
             text_field.setEditable_(false);
             window.contentView().addSubview_(text_field);
 
