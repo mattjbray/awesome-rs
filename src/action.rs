@@ -38,6 +38,34 @@ pub enum Action {
     MoveWindowToPrevGroup { follow: bool },
 }
 
+pub static HELP_TEXT: &str = "
++------+------------------------+---------------------------+
+| mode | keys                   | action                    |
++------+-[modes]----------------+---------------------------+
+| I    | <opt>+<shift> (hold)   | transient mode (T)        |
+| T    | <opt>+<shift>+a        | normal mode (N)           |
+| N    | <esc>/q                | insert mode (I)           |
++------+-[layouts]--------------+---------------------------+
+| T/N  | t                      | tiling layout             |
+| T/N  | f                      | floating layout           |
+| T/N  | c                      | cascade layout            |
++------+-[motions]--------------+---------------------------+
+| T/N  | j/k                    | window motion             |
+| T/N  | i/o/0-9                | group motion              |
+| T/N  | n/p                    | display motion            |
++------+-[window commands]------+---------------------------+
+| N    | <opt>+[motion]         | move window               |
+| N    | <opt>+<shift>+[motion] | move window and follow    |
+| N    | <cmd>+[0-9]            | toggle window in group    |
+| T/N  | <ret>                  | maximize window           |
+| T/N  | m/M                    | minimize/restore window   |
+| T/N  | h/l                    | window left/right half    |
++------+-[tiling commands]------+---------------------------+
+| T/N  | h/l                    | adjust split width        |
+| T/N  | <opt>+h/l              | number of primary windows |
++------+------------------------+---------------------------+
+";
+
 const KEYCODE_0: i64 = 29;
 const KEYCODE_1: i64 = 18;
 const KEYCODE_2: i64 = 19;

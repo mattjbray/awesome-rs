@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 
 use accessibility::AXUIElement;
-use awesome_rs::{Action, DragWindow, WindowManager};
+use awesome_rs::{Action, DragWindow, WindowManager, HELP_TEXT};
 use cocoa::appkit::{NSApp, NSApplication};
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
 use core_graphics::event::{
@@ -44,6 +44,8 @@ fn main() {
         "Starting app. Trusted: {}",
         AXUIElement::application_is_trusted()
     );
+
+    println!("{}", HELP_TEXT);
 
     unsafe {
         // let _pool = NSAutoreleasePool::new(nil);
