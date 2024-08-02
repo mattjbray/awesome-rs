@@ -1393,8 +1393,8 @@ impl WindowManager {
                     self.open_status_window();
                     self.activate_active_window()?;
                 } else {
+                    self.relayout_all_displays()?;
                     self.activate_active_window()?;
-                    self.relayout_active_display()?;
                     self.update_status_window_content();
                 }
                 self.highlight_active_window()?;
@@ -1409,8 +1409,8 @@ impl WindowManager {
                     self.open_status_window();
                     self.activate_active_window()?;
                 } else {
+                    self.relayout_all_displays()?;
                     self.activate_active_window()?;
-                    self.relayout_active_display()?;
                     self.update_status_window_content();
                 }
                 self.highlight_active_window()?;
