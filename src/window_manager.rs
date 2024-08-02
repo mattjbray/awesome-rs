@@ -1146,7 +1146,7 @@ impl WindowManager {
         }
     }
 
-    fn relayout(&self) -> Result<()> {
+    fn relayout_active_display(&self) -> Result<()> {
         if let Some(ds) = self.get_active_display() {
             ds.relayout()
         } else {
@@ -1154,7 +1154,7 @@ impl WindowManager {
         }
     }
 
-    fn relayout_all(&self) -> Result<()> {
+    fn relayout_all_displays(&self) -> Result<()> {
         for ds in self.displays.values() {
             ds.relayout()?;
         }
@@ -1232,7 +1232,7 @@ impl WindowManager {
         match action {
             RelayoutAll => {
                 self.refresh_window_list()?;
-                self.relayout_all()?;
+                self.relayout_all_displays()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
@@ -1257,21 +1257,21 @@ impl WindowManager {
             }
             LayoutFloating => {
                 self.set_layout_floating();
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
             LayoutCascade => {
                 self.set_layout_cascade();
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
             LayoutTiling => {
                 self.set_layout_tile_horizontal();
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
@@ -1294,21 +1294,21 @@ impl WindowManager {
             WindowMinimize => {
                 self.minimize_active_window()?;
                 self.activate_active_window()?;
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
             WindowRestore => {
                 self.unminimize_window()?;
                 self.activate_active_window()?;
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
             WindowClose => {
                 self.close_active_window()?;
                 self.activate_active_window()?;
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
@@ -1330,39 +1330,39 @@ impl WindowManager {
             }
             SwapNextWindow => {
                 self.swap_window_next();
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
             SwapPrevWindow => {
                 self.swap_window_prev();
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
             }
             IncrPrimaryColWidth => {
                 self.incr_primary_column_width();
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
             DecrPrimaryColWidth => {
                 self.decr_primary_column_width();
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
             IncrPrimaryColWindows => {
                 self.incr_primary_column_max_windows();
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
             DecrPrimaryColWindows => {
                 self.decr_primary_column_max_windows();
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.highlight_active_window()?;
                 Ok(())
             }
@@ -1388,13 +1388,13 @@ impl WindowManager {
                 self.move_active_window_to_next_display();
                 if *follow {
                     self.set_next_display_active();
-                    self.relayout_all()?;
+                    self.relayout_all_displays()?;
                     self.close_status_window();
                     self.open_status_window();
                     self.activate_active_window()?;
                 } else {
                     self.activate_active_window()?;
-                    self.relayout()?;
+                    self.relayout_active_display()?;
                     self.update_status_window_content();
                 }
                 self.highlight_active_window()?;
@@ -1404,13 +1404,13 @@ impl WindowManager {
                 self.move_active_window_to_prev_display();
                 if *follow {
                     self.set_prev_display_active();
-                    self.relayout_all()?;
+                    self.relayout_all_displays()?;
                     self.close_status_window();
                     self.open_status_window();
                     self.activate_active_window()?;
                 } else {
                     self.activate_active_window()?;
-                    self.relayout()?;
+                    self.relayout_active_display()?;
                     self.update_status_window_content();
                 }
                 self.highlight_active_window()?;
@@ -1420,7 +1420,7 @@ impl WindowManager {
                 self.set_active_display_group(*g_idx);
                 self.bring_active_display_group_to_front()?;
                 self.activate_active_window()?;
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
@@ -1432,7 +1432,7 @@ impl WindowManager {
                     self.bring_active_display_group_to_front()?;
                 }
                 self.activate_active_window()?;
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
@@ -1440,7 +1440,7 @@ impl WindowManager {
             ToggleWindowInGroup(g_id) => {
                 self.toggle_active_window_in_group(*g_id);
                 self.activate_active_window()?;
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
@@ -1449,7 +1449,7 @@ impl WindowManager {
                 if self.set_active_display_group_next_with_windows() {
                     self.bring_active_display_group_to_front()?;
                     self.activate_active_window()?;
-                    self.relayout()?;
+                    self.relayout_active_display()?;
                     self.update_status_window_content();
                     self.highlight_active_window()?;
                 }
@@ -1459,7 +1459,7 @@ impl WindowManager {
                 if self.set_active_display_group_prev_with_windows() {
                     self.bring_active_display_group_to_front()?;
                     self.activate_active_window()?;
-                    self.relayout()?;
+                    self.relayout_active_display()?;
                     self.update_status_window_content();
                     self.highlight_active_window()?;
                 }
@@ -1472,7 +1472,7 @@ impl WindowManager {
                     self.bring_active_display_group_to_front()?;
                 }
                 self.activate_active_window()?;
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
@@ -1484,7 +1484,7 @@ impl WindowManager {
                     self.bring_active_display_group_to_front()?;
                 }
                 self.activate_active_window()?;
-                self.relayout()?;
+                self.relayout_active_display()?;
                 self.update_status_window_content();
                 self.highlight_active_window()?;
                 Ok(())
