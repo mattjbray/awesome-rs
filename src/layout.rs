@@ -2,7 +2,7 @@ use accessibility::AXUIElement;
 use anyhow::Result;
 use core_graphics::display::{CGDisplay, CGPoint, CGRect, CGSize};
 
-use crate::{window::WindowWrapper, Window};
+use crate::window::{Window, WindowWrapper};
 
 #[derive(Debug)]
 pub struct TileHorizontalOpts {

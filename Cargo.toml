@@ -12,6 +12,13 @@ anyhow = "1.0.81"
 cocoa = "0.25.0"
 core-foundation = "0.9.4"
 core-graphics = "0.23.1"
+objc2  = "*"
+
+[dependencies.objc2-app-kit]
+features = [ "NSApplication", "NSResponder", "NSRunningApplication"]
+
+[dependencies.objc2-foundation]
+features = [ "NSString", "NSNotification", "NSThread" ]
 
 [dependencies.uuid]
 version = "1.8.0"

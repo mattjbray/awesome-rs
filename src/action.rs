@@ -1,6 +1,6 @@
 use core_graphics::event::{CGEvent, CGEventFlags, CGEventType, EventField};
 
-use crate::{mode::Mode, Layout};
+use crate::{layout::Layout, mode::Mode};
 
 #[derive(Debug)]
 pub enum Action {

@@ -29,8 +29,7 @@ use crate::{
     drag_window::DragWindow,
     layout::Layout,
     mode::Mode,
-    window::{Window, WindowWrapper},
-    CGErrorWrapper,
+    window::{CGErrorWrapper, Window, WindowWrapper},
 };
 
 fn get_window_pids(on_screen_only: bool) -> Result<Vec<i64>> {
