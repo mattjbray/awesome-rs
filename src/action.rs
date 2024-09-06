@@ -170,43 +170,43 @@ impl Action {
                     (Mode::Normal, FLG_NULL, KEYCODE_P, _) => Some(PrevDisplay),
                     (Mode::InsertNormal, _, KEYCODE_P, _) => Some(PrevDisplay),
                     (Mode::Normal, FLG_ALT, KEYCODE_N, _) => {
-                        Some(MoveWindowToNextDisplay { follow: false })
-                    }
-                    (Mode::Normal, _, KEYCODE_N, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(MoveWindowToNextDisplay { follow: true })
                     }
+                    (Mode::Normal, _, KEYCODE_N, _) if flags == FLG_ALT | FLG_SHIFT => {
+                        Some(MoveWindowToNextDisplay { follow: false })
+                    }
                     (Mode::Normal, FLG_ALT, KEYCODE_P, _) => {
-                        Some(MoveWindowToPrevDisplay { follow: false })
+                        Some(MoveWindowToPrevDisplay { follow: true })
                     }
                     (Mode::Normal, _, KEYCODE_P, _) if flags == FLG_ALT | FLG_SHIFT => {
-                        Some(MoveWindowToPrevDisplay { follow: true })
+                        Some(MoveWindowToPrevDisplay { follow: false })
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_I, _) => Some(PrevGroup),
                     (Mode::InsertNormal, _, KEYCODE_I, _) => Some(PrevGroup),
                     (Mode::Normal, FLG_NULL, KEYCODE_O, _) => Some(NextGroup),
                     (Mode::InsertNormal, _, KEYCODE_O, _) => Some(NextGroup),
                     (Mode::Normal, FLG_ALT, KEYCODE_I, _) => {
-                        Some(MoveWindowToPrevGroup { follow: false })
-                    }
-                    (Mode::Normal, _, KEYCODE_I, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(MoveWindowToPrevGroup { follow: true })
                     }
+                    (Mode::Normal, _, KEYCODE_I, _) if flags == FLG_ALT | FLG_SHIFT => {
+                        Some(MoveWindowToPrevGroup { follow: false })
+                    }
                     (Mode::Normal, FLG_ALT, KEYCODE_O, _) => {
-                        Some(MoveWindowToNextGroup { follow: false })
+                        Some(MoveWindowToNextGroup { follow: true })
                     }
                     (Mode::Normal, _, KEYCODE_O, _) if flags == FLG_ALT | FLG_SHIFT => {
-                        Some(MoveWindowToNextGroup { follow: true })
+                        Some(MoveWindowToNextGroup { follow: false })
                     }
                     (Mode::Normal, FLG_NULL, KEYCODE_0, _) => Some(ShowGroup(0)),
                     (Mode::InsertNormal, _, KEYCODE_0, _) => Some(ShowGroup(0)),
                     (Mode::Normal, FLG_ALT, KEYCODE_0, _) => Some(MoveWindowToGroup {
                         id: 0,
-                        follow: false,
+                        follow: true,
                     }),
                     (Mode::Normal, _, KEYCODE_0, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(MoveWindowToGroup {
                             id: 0,
-                            follow: true,
+                            follow: false,
                         })
                     }
                     (Mode::Normal, FLG_CMD, KEYCODE_0, _) => Some(ToggleWindowInGroup(0)),
@@ -217,12 +217,12 @@ impl Action {
                     (Mode::InsertNormal, _, KEYCODE_1, _) => Some(ShowGroup(1)),
                     (Mode::Normal, FLG_ALT, KEYCODE_1, _) => Some(MoveWindowToGroup {
                         id: 1,
-                        follow: false,
+                        follow: true,
                     }),
                     (Mode::Normal, _, KEYCODE_1, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(MoveWindowToGroup {
                             id: 1,
-                            follow: true,
+                            follow: false,
                         })
                     }
                     (Mode::Normal, FLG_CMD, KEYCODE_1, _) => Some(ToggleWindowInGroup(1)),
@@ -230,12 +230,12 @@ impl Action {
                     (Mode::InsertNormal, _, KEYCODE_2, _) => Some(ShowGroup(2)),
                     (Mode::Normal, FLG_ALT, KEYCODE_2, _) => Some(MoveWindowToGroup {
                         id: 2,
-                        follow: false,
+                        follow: true,
                     }),
                     (Mode::Normal, _, KEYCODE_2, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(MoveWindowToGroup {
                             id: 2,
-                            follow: true,
+                            follow: false,
                         })
                     }
                     (Mode::Normal, FLG_CMD, KEYCODE_2, _) => Some(ToggleWindowInGroup(2)),
@@ -243,7 +243,7 @@ impl Action {
                     (Mode::InsertNormal, _, KEYCODE_3, _) => Some(ShowGroup(3)),
                     (Mode::Normal, FLG_ALT, KEYCODE_3, _) => Some(MoveWindowToGroup {
                         id: 3,
-                        follow: false,
+                        follow: true,
                     }),
                     (Mode::Normal, _, KEYCODE_3, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(MoveWindowToGroup {
@@ -256,7 +256,7 @@ impl Action {
                     (Mode::InsertNormal, _, KEYCODE_4, _) => Some(ShowGroup(4)),
                     (Mode::Normal, FLG_ALT, KEYCODE_4, _) => Some(MoveWindowToGroup {
                         id: 4,
-                        follow: false,
+                        follow: true,
                     }),
                     (Mode::Normal, _, KEYCODE_4, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(MoveWindowToGroup {
@@ -269,7 +269,7 @@ impl Action {
                     (Mode::InsertNormal, _, KEYCODE_5, _) => Some(ShowGroup(5)),
                     (Mode::Normal, FLG_ALT, KEYCODE_5, _) => Some(MoveWindowToGroup {
                         id: 5,
-                        follow: false,
+                        follow: true,
                     }),
                     (Mode::Normal, _, KEYCODE_5, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(MoveWindowToGroup {
@@ -282,7 +282,7 @@ impl Action {
                     (Mode::InsertNormal, _, KEYCODE_6, _) => Some(ShowGroup(6)),
                     (Mode::Normal, FLG_ALT, KEYCODE_6, _) => Some(MoveWindowToGroup {
                         id: 6,
-                        follow: false,
+                        follow: true,
                     }),
                     (Mode::Normal, _, KEYCODE_6, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(MoveWindowToGroup {
@@ -295,7 +295,7 @@ impl Action {
                     (Mode::InsertNormal, _, KEYCODE_7, _) => Some(ShowGroup(7)),
                     (Mode::Normal, FLG_ALT, KEYCODE_7, _) => Some(MoveWindowToGroup {
                         id: 7,
-                        follow: false,
+                        follow: true,
                     }),
                     (Mode::Normal, _, KEYCODE_7, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(MoveWindowToGroup {
@@ -308,7 +308,7 @@ impl Action {
                     (Mode::InsertNormal, _, KEYCODE_8, _) => Some(ShowGroup(8)),
                     (Mode::Normal, FLG_ALT, KEYCODE_8, _) => Some(MoveWindowToGroup {
                         id: 8,
-                        follow: false,
+                        follow: true,
                     }),
                     (Mode::Normal, _, KEYCODE_8, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(MoveWindowToGroup {
@@ -321,7 +321,7 @@ impl Action {
                     (Mode::InsertNormal, _, KEYCODE_9, _) => Some(ShowGroup(9)),
                     (Mode::Normal, FLG_ALT, KEYCODE_9, _) => Some(MoveWindowToGroup {
                         id: 9,
-                        follow: false,
+                        follow: true,
                     }),
                     (Mode::Normal, _, KEYCODE_9, _) if flags == FLG_ALT | FLG_SHIFT => {
                         Some(MoveWindowToGroup {
