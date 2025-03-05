@@ -566,6 +566,12 @@ impl WindowManager {
         self.display_ids = CGDisplay::active_displays()
             .map_err(|e| anyhow!(format!("CGDisplay::active_displays {:?}", e)))?;
 
+        self.display_ids.sort_by(|&a, &b| {
+            let a = CGDisplay::new(a).bounds().origin.x;
+            let b = CGDisplay::new(b).bounds().origin.x;
+            a.total_cmp(&b)
+        });
+
         self.displays
             .retain(|d_id, _v| self.display_ids.contains(d_id));
 
