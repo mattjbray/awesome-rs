@@ -1243,8 +1243,8 @@ impl WindowManager {
                 Ok(())
             }
             ModeNormal => {
-                self.set_mode(Mode::Normal);
                 self.maybe_enter_normal_mode()?;
+                self.set_mode(Mode::Normal);
                 self.highlight_active_window()?;
                 Ok(())
             }

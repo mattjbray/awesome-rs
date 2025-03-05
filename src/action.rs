@@ -94,6 +94,7 @@ const KEYCODE_T: i64 = 17;
 const KEYCODE_X: i64 = 7;
 const KEYCODE_ENT: i64 = 36;
 const KEYCODE_ESC: i64 = 53;
+const KEYCODE_F3: i64 = 160;
 const FLG_NULL: CGEventFlags = CGEventFlags::CGEventFlagNull;
 const FLG_CTRL: CGEventFlags = CGEventFlags::CGEventFlagControl;
 const FLG_ALT: CGEventFlags = CGEventFlags::CGEventFlagAlternate;
@@ -122,6 +123,7 @@ impl Action {
                 use Action::*;
                 match (mode, flags, keycode, layout) {
                     (Mode::InsertNormal, _, KEYCODE_A, _) => Some(ModeNormal),
+                    (Mode::Insert, _, KEYCODE_F3, _) => Some(ModeNormal),
                     (Mode::Normal, FLG_NULL, KEYCODE_C, _) => Some(LayoutCascade),
                     (Mode::InsertNormal, _, KEYCODE_C, _) => Some(LayoutCascade),
                     (Mode::Normal, FLG_NULL, KEYCODE_F, _) => Some(LayoutFloating),
@@ -330,7 +332,7 @@ impl Action {
                         })
                     }
                     (Mode::Normal, FLG_CMD, KEYCODE_9, _) => Some(ToggleWindowInGroup(9)),
-                    (Mode::Normal, _, KEYCODE_ESC | KEYCODE_Q, _) => Some(ModeInsert),
+                    (Mode::Normal, _, KEYCODE_ESC | KEYCODE_Q | KEYCODE_F3, _) => Some(ModeInsert),
                     _ => None,
                 }
             }
