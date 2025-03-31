@@ -5,8 +5,8 @@ use accessibility_sys::kAXWindowRole;
 use anyhow::{anyhow, Result};
 use cocoa::{
     appkit::{
-        NSBackingStoreType::NSBackingStoreBuffered, NSColor, NSRunningApplication, NSTextField,
-        NSView, NSWindow, NSWindowStyleMask,
+        NSBackingStoreType::NSBackingStoreBuffered, NSColor, NSRunningApplication, NSTabView,
+        NSTextField, NSView, NSWindow, NSWindowStyleMask,
     },
     base::{id, nil},
     foundation::{NSPoint, NSRect, NSSize, NSString},
@@ -129,6 +129,14 @@ fn position_to_origin(w: &WindowWrapper<AXUIElement>) -> Result<NSPoint> {
     let x = f.origin.x;
     let y = m.size.height - f.origin.y - f.size.height;
     Ok(NSPoint::new(x, y))
+}
+
+fn push_bullet(s: &mut String, selected: bool) {
+    if selected {
+        s.push_str("● ");
+    } else {
+        s.push_str("○ ");
+    }
 }
 
 type DisplayID = u32;
@@ -715,21 +723,13 @@ impl WindowManager {
             } else {
                 content.push('\n');
             }
-            if display_is_active {
-                content.push_str("[x] ");
-            } else {
-                content.push_str("[ ] ");
-            }
+            push_bullet(&mut content, display_is_active);
             content.push_str(&format!("Display {}", display_id));
             for group_id in 0..=9 {
                 if let Some(group) = display.groups.get(&group_id) {
                     content.push_str("\n  ");
                     let group_is_active = display.active_group.map_or(false, |id| id == group_id);
-                    if display_is_active && group_is_active {
-                        content.push_str("[x] ");
-                    } else {
-                        content.push_str("[ ] ");
-                    }
+                    push_bullet(&mut content, display_is_active && group_is_active);
                     content.push_str(&format!("Group {} ({})", group_id, group.layout));
                     let iter = group.windows.iter().enumerate();
                     let iter: Box<dyn Iterator<Item = _>> = match group.layout {
@@ -740,17 +740,21 @@ impl WindowManager {
                         content.push_str("\n    ");
                         let window_is_active =
                             group.active_window_idx.map_or(false, |idx| idx == i);
-                        if display_is_active && group_is_active && window_is_active {
-                            content.push_str("[x] ");
-                        } else {
-                            content.push_str("[ ] ");
-                        }
+                        push_bullet(
+                            &mut content,
+                            display_is_active && group_is_active && window_is_active,
+                        );
                         let title = window
                             .element()
                             .title()
                             .map(|cfstring| cfstring.to_string())
                             .unwrap_or("<Unkown>".to_string());
-                        let title: String = title.chars().take(45).collect();
+                        let max_length = 48;
+                        let title: String = if title.chars().count() > max_length {
+                            title.chars().take(max_length - 3).collect::<String>() + "..."
+                        } else {
+                            title
+                        };
                         content.push_str(&format!("{}", title));
                     }
                 } else if Some(group_id) == display.active_group {
@@ -774,7 +778,7 @@ impl WindowManager {
     fn open_status_window(&mut self) {
         self.close_status_window();
 
-        let rect = NSRect::new(NSPoint::new(0., 0.), NSSize::new(300., 300.));
+        let rect = NSRect::new(NSPoint::new(0., 0.), NSSize::new(400., 350.));
         unsafe {
             let window = NSWindow::alloc(nil);
             window.initWithContentRect_styleMask_backing_defer_(
@@ -785,12 +789,14 @@ impl WindowManager {
             );
             let title = NSString::alloc(nil).init_str("Window Manager");
             window.setTitle_(title);
-            window.setAlphaValue_(0.7);
+            window.setAlphaValue_(0.8);
             window.center();
 
             let text_field = NSTextField::alloc(nil);
             NSTextField::initWithFrame_(text_field, rect);
             text_field.setEditable_(false);
+            let font = core_text::font::new_from_name("Monaco", 12.0).unwrap();
+            text_field.setFont_(font.as_CFTypeRef() as id);
             window.contentView().addSubview_(text_field);
 
             self.status_window = Some((window, text_field));

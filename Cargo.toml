@@ -12,6 +12,7 @@ anyhow = "1.0.81"
 cocoa = "0.25.0"
 core-foundation = "0.9.4"
 core-graphics = "0.23.1"
+core-text = "20.1.0"
 
 [dependencies.uuid]
 version = "1.8.0"
@@ -30,3 +31,4 @@ core-foundation = { path = "./vendor/core-foundation-rs/core-foundation" }
 core-foundation-sys = { path = "./vendor/core-foundation-rs/core-foundation-sys" }
 core-graphics = { path = "./vendor/core-foundation-rs/core-graphics" }
 core-graphics-types = { path = "./vendor/core-foundation-rs/core-graphics-types" }
+core-text = { path = "./vendor/core-foundation-rs/core-text" }
