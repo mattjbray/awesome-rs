@@ -345,6 +345,11 @@ impl DisplayState {
         self.active_group.and_then(|idx| self.groups.get(&idx))
     }
 
+    fn get_active_group_mut_with_idx(&mut self) -> Option<(u8, &mut WindowGroup)> {
+        self.active_group
+            .and_then(|idx| self.groups.get_mut(&idx).map(|g| (idx, g)))
+    }
+
     fn get_active_group_mut(&mut self) -> Option<&mut WindowGroup> {
         self.active_group.and_then(|idx| self.groups.get_mut(&idx))
     }
@@ -429,11 +434,12 @@ impl DisplayState {
     }
 
     fn pop_active_window(&mut self) -> Option<WindowWrapper<AXUIElement>> {
-        let window = self
-            .get_active_group_mut()
-            .and_then(|g| g.pop_active_window());
-        self.groups.retain(|_g_id, g| !g.windows.is_empty());
-        window
+        let (gid, group) = self.get_active_group_mut_with_idx()?;
+        let window = group.pop_active_window()?;
+        if group.windows.is_empty() {
+            self.groups.remove(&gid);
+        }
+        Some(window)
     }
 
     fn move_active_window_to_group(&mut self, g_id: u8) {
@@ -969,6 +975,11 @@ impl WindowManager {
             Some(ds) => match ds.pop_active_window() {
                 None => (),
                 Some(window) => {
+                    if let Some(gid) = ds.active_group {
+                        if !ds.groups.contains_key(&gid) {
+                            ds.active_group = ds.get_prev_group_id_with_windows();
+                        }
+                    }
                     let display_id = self.display_ids[display_idx];
                     self.insert_open_window(window, display_id);
                 }
